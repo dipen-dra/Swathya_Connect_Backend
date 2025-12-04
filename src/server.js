@@ -12,6 +12,10 @@ dotenv.config();
 // Connect to database
 connectDB();
 
+// Start reminder scheduler
+const { startReminderScheduler } = require('./utils/reminderScheduler');
+startReminderScheduler();
+
 const app = express();
 
 // Middleware
@@ -36,6 +40,12 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/profile', require('./routes/profileRoutes'));
+app.use('/api/reminders', require('./routes/reminderRoutes'));
+app.use('/api/consultations', require('./routes/consultationRoutes'));
+app.use('/api/doctors', require('./routes/doctorRoutes'));
+app.use('/api/pharmacies', require('./routes/pharmacyRoutes'));
+app.use('/api/stats', require('./routes/statsRoutes'));
 
 // Error Handler
 app.use((err, req, res, next) => {
