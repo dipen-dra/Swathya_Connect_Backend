@@ -6,41 +6,15 @@ const MedicineReminder = require('../models/MedicineReminder');
 // @access  Private
 exports.getDashboardStats = async (req, res) => {
     try {
-        // Get total consultations count
-        const totalConsultations = await Consultation.countDocuments({
-            patientId: req.user.id
-        });
-
-        // Get active reminders count
-        const activeReminders = await MedicineReminder.countDocuments({
-            userId: req.user.id,
-            isActive: true
-        });
-
-        // Get completed consultations with prescriptions
-        const totalPrescriptions = await Consultation.countDocuments({
-            patientId: req.user.id,
-            status: 'completed',
-            prescription: { $exists: true, $ne: '' }
-        });
-
-        // Calculate average rating given by user
-        const consultationsWithRatings = await Consultation.find({
-            patientId: req.user.id,
-            rating: { $exists: true, $ne: null }
-        });
-
-        let avgRating = 0;
-        if (consultationsWithRatings.length > 0) {
-            const totalRating = consultationsWithRatings.reduce((sum, c) => sum + c.rating, 0);
-            avgRating = (totalRating / consultationsWithRatings.length).toFixed(1);
-        }
-
-        // Get this month's consultations for comparison
         const currentDate = new Date();
         const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         const lastMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
         const firstDayOfLastMonth = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+
+        // 1. Total Consultations (all time)
+        const totalConsultations = await Consultation.countDocuments({
+            patientId: req.user.id
+        });
 
         const thisMonthConsultations = await Consultation.countDocuments({
             patientId: req.user.id,
@@ -52,46 +26,110 @@ exports.getDashboardStats = async (req, res) => {
             createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
         });
 
-        const consultationChange = lastMonthConsultations > 0
+        const totalConsultationsChange = lastMonthConsultations > 0
             ? Math.round(((thisMonthConsultations - lastMonthConsultations) / lastMonthConsultations) * 100)
             : thisMonthConsultations > 0 ? 100 : 0;
 
-        // Get yesterday's active reminders for comparison
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-
-        const yesterdayReminders = await MedicineReminder.countDocuments({
-            userId: req.user.id,
-            isActive: true,
-            createdAt: { $lt: yesterday }
+        // 2. Upcoming Appointments (status: upcoming or scheduled)
+        const upcomingAppointments = await Consultation.countDocuments({
+            patientId: req.user.id,
+            status: { $in: ['upcoming', 'scheduled', 'pending'] },
+            date: { $gte: currentDate }
         });
 
-        const reminderChange = yesterdayReminders > 0
-            ? Math.round(((activeReminders - yesterdayReminders) / yesterdayReminders) * 100)
-            : activeReminders > 0 ? 100 : 0;
+        const lastMonthUpcoming = await Consultation.countDocuments({
+            patientId: req.user.id,
+            status: { $in: ['upcoming', 'scheduled', 'pending'] },
+            createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
+        });
+
+        const upcomingChange = lastMonthUpcoming > 0
+            ? Math.round(((upcomingAppointments - lastMonthUpcoming) / lastMonthUpcoming) * 100)
+            : upcomingAppointments > 0 ? 100 : 0;
+
+        // 3. Completed Consultations (status: completed)
+        const completedConsultations = await Consultation.countDocuments({
+            patientId: req.user.id,
+            status: 'completed'
+        });
+
+        const thisMonthCompleted = await Consultation.countDocuments({
+            patientId: req.user.id,
+            status: 'completed',
+            createdAt: { $gte: firstDayOfMonth }
+        });
+
+        const lastMonthCompleted = await Consultation.countDocuments({
+            patientId: req.user.id,
+            status: 'completed',
+            createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
+        });
+
+        const completedChange = lastMonthCompleted > 0
+            ? Math.round(((thisMonthCompleted - lastMonthCompleted) / lastMonthCompleted) * 100)
+            : thisMonthCompleted > 0 ? 100 : 0;
+
+        // 4. Total Spent (sum of all consultation fees)
+        const consultationsWithFees = await Consultation.find({
+            patientId: req.user.id,
+            fee: { $exists: true, $ne: null }
+        });
+
+        const totalSpent = consultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+
+        const thisMonthConsultationsWithFees = await Consultation.find({
+            patientId: req.user.id,
+            fee: { $exists: true, $ne: null },
+            createdAt: { $gte: firstDayOfMonth }
+        });
+
+        const lastMonthConsultationsWithFees = await Consultation.find({
+            patientId: req.user.id,
+            fee: { $exists: true, $ne: null },
+            createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
+        });
+
+        const thisMonthSpent = thisMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+        const lastMonthSpent = lastMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+
+        const spentChange = lastMonthSpent > 0
+            ? Math.round(((thisMonthSpent - lastMonthSpent) / lastMonthSpent) * 100)
+            : thisMonthSpent > 0 ? 100 : 0;
+
+        // Also include active reminders for backward compatibility
+        const activeReminders = await MedicineReminder.countDocuments({
+            userId: req.user.id,
+            isActive: true
+        });
 
         res.status(200).json({
             success: true,
             data: {
                 totalConsultations: {
                     value: totalConsultations,
-                    change: consultationChange,
-                    changeText: 'than last month'
+                    change: totalConsultationsChange,
+                    changeText: 'from last month'
                 },
+                upcomingAppointments: {
+                    value: upcomingAppointments,
+                    change: upcomingChange,
+                    changeText: 'from last month'
+                },
+                completedConsultations: {
+                    value: completedConsultations,
+                    change: completedChange,
+                    changeText: 'from last month'
+                },
+                totalSpent: {
+                    value: totalSpent,
+                    change: spentChange,
+                    changeText: 'from last month'
+                },
+                // Legacy fields for backward compatibility
                 activeReminders: {
                     value: activeReminders,
-                    change: reminderChange,
-                    changeText: 'than yesterday'
-                },
-                totalPrescriptions: {
-                    value: totalPrescriptions,
                     change: 0,
-                    changeText: 'this week'
-                },
-                avgRating: {
-                    value: avgRating,
-                    change: 0,
-                    changeText: 'from last rating'
+                    changeText: 'active now'
                 }
             }
         });
