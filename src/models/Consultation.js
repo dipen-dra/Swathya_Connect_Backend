@@ -19,6 +19,10 @@ const consultationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    doctorImage: {
+        type: String,
+        default: ''
+    },
     date: {
         type: Date,
         required: [true, 'Please add consultation date']

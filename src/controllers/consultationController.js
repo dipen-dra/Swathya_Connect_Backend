@@ -89,6 +89,7 @@ exports.bookConsultation = async (req, res) => {
             doctorId: doctor._id,
             doctorName: doctor.name,
             specialty: doctor.specialty,
+            doctorImage: doctor.image || '',
             date,
             time,
             type,
