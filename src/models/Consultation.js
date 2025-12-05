@@ -62,6 +62,16 @@ const consultationSchema = new mongoose.Schema({
         min: 1,
         max: 5,
         default: null
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'paid', 'failed'],
+        default: 'pending'
+    },
+    paymentMethod: {
+        type: String,
+        enum: ['Khalti', 'eSewa', 'Cash'],
+        default: null
     }
 }, {
     timestamps: true
