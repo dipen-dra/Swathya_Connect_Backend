@@ -40,9 +40,25 @@ const doctorSchema = new mongoose.Schema({
         enum: ['video', 'audio', 'chat'],
         default: ['video', 'audio', 'chat']
     },
-    profileImage: {
+    image: {
         type: String,
         default: null
+    },
+    description: {
+        type: String,
+        default: ''
+    },
+    location: {
+        type: String,
+        default: ''
+    },
+    hours: {
+        type: String,
+        default: ''
+    },
+    patients: {
+        type: Number,
+        default: 0
     },
     qualifications: {
         type: [String],

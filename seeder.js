@@ -21,7 +21,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio', 'chat'],
         qualifications: ['MBBS', 'MD Cardiology', 'Fellowship in Interventional Cardiology'],
-        languages: ['English', 'Nepali', 'Hindi']
+        languages: ['English', 'Nepali', 'Hindi'],
+        image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop',
+        description: 'Senior Cardiologist with expertise in interventional cardiology and heart disease prevention.',
+        location: 'Kathmandu Medical Center',
+        hours: 'Mon-Fri 9AM-5PM',
+        patients: 1200
     },
     {
         name: 'Dr. Priya Sharma',
@@ -34,7 +39,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio'],
         qualifications: ['MBBS', 'MD Dermatology'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop',
+        description: 'Dermatologist specializing in skin conditions, cosmetic procedures, and hair treatments.',
+        location: 'Bir Hospital',
+        hours: 'Tue-Sat 10AM-6PM',
+        patients: 800
     },
     {
         name: 'Dr. Amit Thapa',
@@ -47,7 +57,12 @@ const doctors = [
         isOnline: false,
         consultationTypes: ['video', 'chat'],
         qualifications: ['MBBS', 'MS Orthopedics'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&h=400&fit=crop',
+        description: 'Orthopedic surgeon with specialization in joint replacement and sports medicine.',
+        location: 'TUTH',
+        hours: 'Mon-Wed-Fri 8AM-4PM',
+        patients: 950
     },
     {
         name: 'Dr. Sunita Maharjan',
@@ -60,7 +75,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio', 'chat'],
         qualifications: ['MBBS', 'MD General Medicine'],
-        languages: ['English', 'Nepali', 'Newari']
+        languages: ['English', 'Nepali', 'Newari'],
+        image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
+        description: 'Pediatrician with expertise in child development and pediatric emergency care.',
+        location: 'Kanti Children Hospital',
+        hours: 'Mon-Sat 9AM-5PM',
+        patients: 1500
     },
     {
         name: 'Dr. Krishna Poudel',
@@ -73,7 +93,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio'],
         qualifications: ['MBBS', 'MD Gastroenterology', 'DM Hepatology'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&h=400&fit=crop',
+        description: 'Gastroenterologist with expertise in digestive disorders and endoscopic procedures.',
+        location: 'Norvic International Hospital',
+        hours: 'Mon-Wed-Fri 10AM-4PM',
+        patients: 750
     },
     {
         name: 'Dr. Maya Gurung',
@@ -86,7 +111,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio', 'chat'],
         qualifications: ['MBBS', 'MD Obstetrics & Gynecology'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1614608682850-e0d6ed316d47?w=400&h=400&fit=crop',
+        description: 'Gynecologist and Obstetrician specializing in high-risk pregnancies and women\'s health.',
+        location: 'Paropakar Maternity Hospital',
+        hours: 'Mon-Fri 9AM-5PM',
+        patients: 1100
     },
     {
         name: 'Dr. Bikash Shrestha',
@@ -99,7 +129,12 @@ const doctors = [
         isOnline: false,
         consultationTypes: ['video', 'audio', 'chat'],
         qualifications: ['MBBS', 'MD Pediatrics'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop',
+        description: 'General Physician with broad experience in treating common medical conditions.',
+        location: 'Patan Hospital',
+        hours: 'Mon-Sat 8AM-6PM',
+        patients: 2000
     },
     {
         name: 'Dr. Anita Rai',
@@ -112,7 +147,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio', 'chat'],
         qualifications: ['MBBS', 'MD Psychiatry'],
-        languages: ['English', 'Nepali', 'Hindi']
+        languages: ['English', 'Nepali', 'Hindi'],
+        image: 'https://images.unsplash.com/photo-1638202993928-7267aad84c31?w=400&h=400&fit=crop',
+        description: 'Psychiatrist with focus on anxiety, depression, and cognitive behavioral therapy.',
+        location: 'Mental Health Center',
+        hours: 'Tue-Sat 10AM-6PM',
+        patients: 650
     },
     {
         name: 'Dr. Ramesh Adhikari',
@@ -125,7 +165,12 @@ const doctors = [
         isOnline: true,
         consultationTypes: ['video', 'audio'],
         qualifications: ['MBBS', 'MD Neurology', 'DM Neurology'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&h=400&fit=crop',
+        description: 'Neurologist specializing in stroke, epilepsy, and neurodegenerative diseases.',
+        location: 'Grande International Hospital',
+        hours: 'Mon-Thu 9AM-4PM',
+        patients: 850
     },
     {
         name: 'Dr. Sita Karki',
@@ -138,7 +183,48 @@ const doctors = [
         isOnline: false,
         consultationTypes: ['video', 'chat'],
         qualifications: ['MBBS', 'MD Endocrinology'],
-        languages: ['English', 'Nepali']
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1666214280557-f1b5022eb634?w=400&h=400&fit=crop',
+        description: 'Endocrinologist specializing in diabetes, thyroid disorders, and hormonal imbalances.',
+        location: 'Nepal Mediciti Hospital',
+        hours: 'Mon-Fri 10AM-4PM',
+        patients: 720
+    },
+    {
+        name: 'Dr. Deepak Tamang',
+        specialty: 'Ophthalmologist',
+        experience: 14,
+        rating: 4.8,
+        reviewCount: 112,
+        consultationFee: 1400,
+        availability: 'Mon-Sat, 9 AM - 5 PM',
+        isOnline: true,
+        consultationTypes: ['video', 'audio', 'chat'],
+        qualifications: ['MBBS', 'MS Ophthalmology'],
+        languages: ['English', 'Nepali'],
+        image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400&h=400&fit=crop',
+        description: 'Eye specialist with expertise in cataract surgery and laser vision correction.',
+        location: 'Tilganga Eye Hospital',
+        hours: 'Mon-Fri 8AM-4PM',
+        patients: 1300
+    },
+    {
+        name: 'Dr. Kavita Joshi',
+        specialty: 'Pulmonologist',
+        experience: 11,
+        rating: 4.6,
+        reviewCount: 89,
+        consultationFee: 1350,
+        availability: 'Tue-Sat, 10 AM - 4 PM',
+        isOnline: true,
+        consultationTypes: ['video', 'audio'],
+        qualifications: ['MBBS', 'MD Pulmonary Medicine'],
+        languages: ['English', 'Nepali', 'Hindi'],
+        image: 'https://images.unsplash.com/photo-1643297654416-05795d62e39c?w=400&h=400&fit=crop',
+        description: 'Pulmonologist specializing in respiratory disorders and critical care medicine.',
+        location: 'Star Hospital',
+        hours: 'Tue-Sat 10AM-4PM',
+        patients: 680
     }
 ];
 
