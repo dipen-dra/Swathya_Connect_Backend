@@ -15,7 +15,7 @@ exports.getConsultations = async (req, res) => {
         }
 
         const consultations = await Consultation.find(query)
-            .sort({ date: -1, createdAt: -1 });
+            .sort({ createdAt: -1, date: -1 });
 
         res.status(200).json({
             success: true,
@@ -71,7 +71,7 @@ exports.getConsultation = async (req, res) => {
 // @access  Private
 exports.bookConsultation = async (req, res) => {
     try {
-        const { doctorId, date, time, type, reason } = req.body;
+        const { doctorId, date, time, type, reason, fee } = req.body;
 
         // Get doctor details
         const doctor = await Doctor.findById(doctorId);
@@ -80,6 +80,14 @@ exports.bookConsultation = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: 'Doctor not found'
+            });
+        }
+
+        // Validate fee is provided
+        if (!fee || fee <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid consultation fee'
             });
         }
 
@@ -93,7 +101,7 @@ exports.bookConsultation = async (req, res) => {
             date,
             time,
             type,
-            fee: doctor.consultationFee,
+            fee, // Use the fee passed from frontend based on consultation type
             reason,
             status: 'upcoming'
         });
