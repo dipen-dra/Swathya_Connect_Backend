@@ -2,12 +2,41 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const Doctor = require('./src/models/Doctor');
 const Pharmacy = require('./src/models/Pharmacy');
+const User = require('./src/models/User');
 
 // Load env vars
 dotenv.config();
 
 // Connect to DB
 mongoose.connect(process.env.MONGO_URI);
+
+// Demo users for testing (passwords will be hashed by User model)
+const users = [
+    {
+        fullName: 'John Patient',
+        email: 'patient@demo.com',
+        phone: '+977-9841234567',
+        password: 'demo123',
+        role: 'patient',
+        isVerified: true
+    },
+    {
+        fullName: 'Dr. Rajesh Kumar',
+        email: 'doctor@demo.com',
+        phone: '+977-9841234568',
+        password: 'demo123',
+        role: 'doctor',
+        isVerified: true
+    },
+    {
+        fullName: 'MediCare Pharmacy',
+        email: 'pharmacy@demo.com',
+        phone: '+977-9841234569',
+        password: 'demo123',
+        role: 'pharmacy',
+        isVerified: true
+    }
+];
 
 const doctors = [
     {
@@ -310,15 +339,12 @@ const pharmacies = [
 
 const importData = async () => {
     try {
-        // Clear existing data
-        await Doctor.deleteMany();
-        await Pharmacy.deleteMany();
-
-        // Insert sample data
-        await Doctor.insertMany(doctors);
-        await Pharmacy.insertMany(pharmacies);
+        await User.create(users);
+        await Doctor.create(doctors);
+        await Pharmacy.create(pharmacies);
 
         console.log('✅ Data Imported Successfully!');
+        console.log(`   - ${users.length} users added`);
         console.log(`   - ${doctors.length} doctors added`);
         console.log(`   - ${pharmacies.length} pharmacies added`);
         process.exit();
@@ -328,8 +354,10 @@ const importData = async () => {
     }
 };
 
+
 const deleteData = async () => {
     try {
+        await User.deleteMany();
         await Doctor.deleteMany();
         await Pharmacy.deleteMany();
 
