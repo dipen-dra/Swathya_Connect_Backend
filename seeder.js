@@ -70,7 +70,7 @@ const doctors = [
         experience: 8,
         rating: 4.6,
         reviewCount: 203,
-        consultationFee: 1000,
+        consultationFee: 100,
         availability: 'Mon-Sun, 24/7',
         isOnline: true,
         consultationTypes: ['video', 'audio', 'chat'],
