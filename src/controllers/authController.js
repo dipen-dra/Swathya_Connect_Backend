@@ -51,7 +51,7 @@ const registerUser = async (req, res) => {
 // @access  Public
 const loginUser = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, role: selectedRole } = req.body;
 
         // Hardcoded Admin Check
         if (email === 'admin@gmail.com' && password === 'admin123') {
@@ -96,6 +96,14 @@ const loginUser = async (req, res) => {
         const user = await User.findOne({ email }).select('+password');
 
         if (user && (await user.matchPassword(password))) {
+            // Validate that the selected role matches the user's actual role
+            if (selectedRole && user.role !== selectedRole) {
+                return res.status(403).json({
+                    success: false,
+                    message: `Invalid credentials. This account is registered as a ${user.role}, not a ${selectedRole}.`
+                });
+            }
+
             generateToken(res, user._id);
             res.json({
                 success: true,
