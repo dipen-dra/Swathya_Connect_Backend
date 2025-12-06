@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const Consultation = require('../models/Consultation');
+const User = require('../models/User');
+const { sendConsultationConfirmation } = require('../utils/emailService');
 
 const ESEWA_URL = 'https://rc-epay.esewa.com.np/api/epay/main/v2/form';
 const ESEWA_SCD = 'EPAYTEST';
@@ -83,10 +85,35 @@ exports.verifyEsewaPayment = async (req, res) => {
                 return res.status(404).json({ success: false, message: 'Consultation not found after payment.' });
             }
 
+            // Check if already paid to prevent duplicate emails
+            const wasAlreadyPaid = consultation.paymentStatus === 'paid';
+
             // Update consultation payment status
             consultation.paymentStatus = 'paid';
             consultation.paymentMethod = 'eSewa';
             await consultation.save();
+
+            // Send confirmation email only if this is a new payment
+            if (!wasAlreadyPaid) {
+                try {
+                    const user = await User.findById(consultation.patientId);
+                    if (user && user.email) {
+                        await sendConsultationConfirmation(user.email, user.name, {
+                            doctorName: consultation.doctorName,
+                            specialty: consultation.specialty,
+                            date: consultation.date,
+                            time: consultation.time,
+                            type: consultation.type,
+                            fee: consultation.fee,
+                            paymentMethod: 'eSewa',
+                            consultationId: consultation._id
+                        });
+                    }
+                } catch (emailError) {
+                    console.error('Failed to send confirmation email:', emailError);
+                    // Don't fail the request if email fails
+                }
+            }
 
             res.status(200).json({
                 success: true,

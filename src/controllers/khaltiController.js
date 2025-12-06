@@ -1,4 +1,6 @@
 const Consultation = require('../models/Consultation');
+const User = require('../models/User');
+const { sendConsultationConfirmation } = require('../utils/emailService');
 
 const KHALTI_SECRET_KEY = 'test_secret_key_3f78fb6364ef4bd1b5fc670ce33a06f5';
 
@@ -48,10 +50,35 @@ exports.verifyKhaltiPayment = async (req, res) => {
                 });
             }
 
+            // Check if already paid to prevent duplicate emails
+            const wasAlreadyPaid = consultation.paymentStatus === 'paid';
+
             // Update consultation payment status
             consultation.paymentStatus = 'paid';
             consultation.paymentMethod = 'Khalti';
             await consultation.save();
+
+            // Send confirmation email only if this is a new payment
+            if (!wasAlreadyPaid) {
+                try {
+                    const user = await User.findById(consultation.patientId);
+                    if (user && user.email) {
+                        await sendConsultationConfirmation(user.email, user.name, {
+                            doctorName: consultation.doctorName,
+                            specialty: consultation.specialty,
+                            date: consultation.date,
+                            time: consultation.time,
+                            type: consultation.type,
+                            fee: consultation.fee,
+                            paymentMethod: 'Khalti',
+                            consultationId: consultation._id
+                        });
+                    }
+                } catch (emailError) {
+                    console.error('Failed to send confirmation email:', emailError);
+                    // Don't fail the request if email fails
+                }
+            }
 
             res.status(200).json({
                 success: true,
