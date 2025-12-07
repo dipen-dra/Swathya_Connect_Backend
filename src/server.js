@@ -16,6 +16,9 @@ connectDB();
 const { startReminderScheduler } = require('./utils/reminderScheduler');
 startReminderScheduler();
 
+// Initialize WhatsApp service (will log if credentials are missing)
+require('./utils/whatsappService');
+
 const app = express();
 
 // Middleware

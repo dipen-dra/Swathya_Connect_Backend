@@ -14,12 +14,11 @@ const startReminderScheduler = () => {
             // Find active reminders that are due in 10 minutes
             const upcomingReminders = await MedicineReminder.find({
                 isActive: true,
-                emailReminder: true,
                 nextReminder: {
                     $gte: now,
                     $lte: tenMinutesLater
                 }
-            }).populate('userId', 'email fullName');
+            }).populate('userId', 'email fullName whatsappNumber');
 
             if (upcomingReminders.length > 0) {
                 console.log(`📧 Found ${upcomingReminders.length} upcoming reminders`);
@@ -28,16 +27,37 @@ const startReminderScheduler = () => {
             // Send email for each reminder
             for (const reminder of upcomingReminders) {
                 if (reminder.userId && reminder.userId.email) {
-                    await sendMedicineReminder(
-                        reminder.userId.email,
-                        reminder.userId.fullName,
-                        {
-                            medicineName: reminder.medicineName,
-                            dosage: reminder.dosage,
-                            times: reminder.times,
-                            instructions: reminder.instructions
-                        }
-                    );
+                    // Send email if enabled
+                    if (reminder.emailReminder) {
+                        await sendMedicineReminder(
+                            reminder.userId.email,
+                            reminder.userId.fullName,
+                            {
+                                medicineName: reminder.medicineName,
+                                dosage: reminder.dosage,
+                                times: reminder.times,
+                                instructions: reminder.instructions
+                            }
+                        );
+                    }
+
+                    // Send WhatsApp if enabled and user has WhatsApp number
+                    console.log(`🔍 Debug - whatsappReminder: ${reminder.whatsappReminder}, whatsappNumber: ${reminder.userId.whatsappNumber}`);
+                    if (reminder.whatsappReminder && reminder.userId.whatsappNumber) {
+                        const { sendWhatsAppReminder } = require('./whatsappService');
+                        await sendWhatsAppReminder(
+                            reminder.userId.whatsappNumber,
+                            reminder.userId.fullName,
+                            {
+                                medicineName: reminder.medicineName,
+                                dosage: reminder.dosage,
+                                times: reminder.times,
+                                instructions: reminder.instructions
+                            }
+                        );
+                    } else {
+                        console.log(`⚠️ WhatsApp not sent - whatsappReminder: ${reminder.whatsappReminder}, has whatsappNumber: ${!!reminder.userId.whatsappNumber}`);
+                    }
 
                     // Update nextReminder to tomorrow at the same time to prevent duplicate emails
                     const nextReminderTime = new Date(reminder.nextReminder);
@@ -66,12 +86,11 @@ const checkRemindersNow = async () => {
 
         const upcomingReminders = await MedicineReminder.find({
             isActive: true,
-            emailReminder: true,
             nextReminder: {
                 $gte: now,
                 $lte: tenMinutesLater
             }
-        }).populate('userId', 'email fullName');
+        }).populate('userId', 'email fullName whatsappNumber');
 
         console.log(`Found ${upcomingReminders.length} upcoming reminders`);
 

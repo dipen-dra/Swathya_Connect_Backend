@@ -49,6 +49,18 @@ const profileSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    whatsappNumber: {
+        type: String,
+        default: '',
+        validate: {
+            validator: function (v) {
+                // If provided, must be in international format (+countrycode...)
+                if (!v || v === '') return true;
+                return /^\+\d{10,15}$/.test(v.replace(/\s/g, ''));
+            },
+            message: 'WhatsApp number must be in international format (e.g., +9779812345678)'
+        }
+    },
     address: {
         type: String,
         default: ''

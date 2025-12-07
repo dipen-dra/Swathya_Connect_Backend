@@ -56,6 +56,7 @@ exports.createOrUpdateProfile = async (req, res) => {
             medicalHistory,
             emergencyContact,
             phoneNumber,
+            whatsappNumber,
             address,
             city,
             country
@@ -73,6 +74,7 @@ exports.createOrUpdateProfile = async (req, res) => {
             medicalHistory,
             emergencyContact,
             phoneNumber,
+            whatsappNumber,
             address,
             city,
             country
@@ -101,6 +103,14 @@ exports.createOrUpdateProfile = async (req, res) => {
             // Create
             profile = await Profile.create(profileFields);
             console.log('✅ Backend: Profile created:', profile);
+        }
+
+        // Also update the User model with whatsappNumber so scheduler can access it
+        if (whatsappNumber !== undefined) {
+            await User.findByIdAndUpdate(req.user.id, {
+                whatsappNumber: whatsappNumber
+            });
+            console.log('✅ Backend: User whatsappNumber synced:', whatsappNumber);
         }
 
         res.status(200).json({

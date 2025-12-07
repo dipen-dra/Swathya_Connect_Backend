@@ -19,6 +19,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Please add a phone number']
     },
+    whatsappNumber: {
+        type: String,
+        default: null,
+        validate: {
+            validator: function (v) {
+                // If provided, must be in international format (+countrycode...)
+                if (!v) return true;
+                return /^\+\d{10,15}$/.test(v);
+            },
+            message: 'WhatsApp number must be in international format (e.g., +9779812345678)'
+        }
+    },
     password: {
         type: String,
         required: [true, 'Please add a password'],

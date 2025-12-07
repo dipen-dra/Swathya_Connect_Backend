@@ -45,6 +45,10 @@ const medicineReminderSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    whatsappReminder: {
+        type: Boolean,
+        default: false
+    },
     beforeMealMinutes: {
         type: Number,
         default: 0
