@@ -66,7 +66,7 @@ exports.createOrUpdateProfile = async (req, res) => {
             userId: req.user.id,
             firstName: firstName || req.user.fullName.split(' ')[0],
             lastName: lastName || req.user.fullName.split(' ').slice(1).join(' '),
-            dateOfBirth,
+            dateOfBirth: dateOfBirth === '' ? null : dateOfBirth, // Convert empty string to null for Date field
             gender,
             bloodGroup,
             allergies,
