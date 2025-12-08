@@ -26,14 +26,30 @@ exports.getConsultations = async (req, res) => {
         }
 
         const consultations = await Consultation.find(query)
-            .populate('patientId', 'name email')
-            .populate('doctorId', 'name specialty')
+            .populate('patientId', 'name fullName email phone')
+            .populate('doctorId', 'name fullName email')
             .sort({ createdAt: -1, date: -1 });
+
+        // Fetch profile images for patients
+        const Profile = require('../models/Profile');
+        const consultationsWithImages = await Promise.all(consultations.map(async (consultation) => {
+            const consultationObj = consultation.toObject();
+
+            // Get patient profile image
+            if (consultationObj.patientId) {
+                const patientProfile = await Profile.findOne({ userId: consultationObj.patientId._id });
+                if (patientProfile && patientProfile.profileImage) {
+                    consultationObj.patientId.profileImage = patientProfile.profileImage;
+                }
+            }
+
+            return consultationObj;
+        }));
 
         res.status(200).json({
             success: true,
-            count: consultations.length,
-            data: consultations
+            count: consultationsWithImages.length,
+            data: consultationsWithImages
         });
     } catch (error) {
         res.status(500).json({
