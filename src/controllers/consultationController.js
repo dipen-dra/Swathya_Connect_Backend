@@ -10,13 +10,24 @@ exports.getConsultations = async (req, res) => {
     try {
         const { status } = req.query;
 
-        let query = { patientId: req.user.id };
+        // Build query based on user role
+        let query = {};
+
+        if (req.user.role === 'doctor') {
+            // For doctors, get consultations where they are the doctor
+            query.doctorId = req.user.id;
+        } else {
+            // For patients, get their consultations
+            query.patientId = req.user.id;
+        }
 
         if (status && status !== 'all') {
             query.status = status;
         }
 
         const consultations = await Consultation.find(query)
+            .populate('patientId', 'name email')
+            .populate('doctorId', 'name specialty')
             .sort({ createdAt: -1, date: -1 });
 
         res.status(200).json({
@@ -75,15 +86,19 @@ exports.bookConsultation = async (req, res) => {
     try {
         const { doctorId, date, time, type, reason, fee } = req.body;
 
-        // Get doctor details
-        const doctor = await Doctor.findById(doctorId);
+        // Get doctor user details
+        const doctorUser = await User.findById(doctorId);
 
-        if (!doctor) {
+        if (!doctorUser || doctorUser.role !== 'doctor') {
             return res.status(404).json({
                 success: false,
                 message: 'Doctor not found'
             });
         }
+
+        // Get doctor profile for additional details
+        const Profile = require('../models/Profile');
+        const doctorProfile = await Profile.findOne({ userId: doctorId });
 
         // Validate fee is provided
         if (!fee || fee <= 0) {
@@ -96,10 +111,11 @@ exports.bookConsultation = async (req, res) => {
         // Create consultation
         const consultation = await Consultation.create({
             patientId: req.user.id,
-            doctorId: doctor._id,
-            doctorName: doctor.name,
-            specialty: doctor.specialty,
-            doctorImage: doctor.image || '',
+            doctorId: doctorUser._id,
+            doctorName: doctorUser.fullName || doctorUser.name ||
+                (doctorProfile ? `${doctorProfile.firstName} ${doctorProfile.lastName}`.trim() : doctorUser.email),
+            specialty: doctorProfile?.specialty || 'General Physician',
+            doctorImage: doctorProfile?.profileImage || '',
             date,
             time,
             type,

@@ -93,6 +93,59 @@ const profileSchema = new mongoose.Schema({
     professionalBio: {
         type: String,
         default: ''
+    },
+    // Doctor Availability & Workplace
+    workplace: {
+        type: String,
+        default: ''
+    },
+    availabilityDays: {
+        type: [String], // Array of days: ['Monday', 'Tuesday', etc.]
+        default: []
+    },
+    availabilityTime: {
+        type: String,
+        default: '' // e.g., "9:00 AM - 5:00 PM"
+    },
+    // Consultation Fees by Type
+    chatFee: {
+        type: Number,
+        default: null
+    },
+    audioFee: {
+        type: Number,
+        default: null
+    },
+    videoFee: {
+        type: Number,
+        default: null
+    },
+    // Doctor Verification Fields
+    verificationStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    verifiedAt: {
+        type: Date,
+        default: null
+    },
+    rejectionReason: {
+        type: String,
+        default: ''
+    },
+    submittedForReview: {
+        type: Boolean,
+        default: false
+    },
+    submittedAt: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

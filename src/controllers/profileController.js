@@ -65,7 +65,13 @@ exports.createOrUpdateProfile = async (req, res) => {
             licenseNumber,
             yearsOfExperience,
             education,
-            professionalBio
+            professionalBio,
+            workplace,
+            availabilityDays,
+            availabilityTime,
+            chatFee,
+            audioFee,
+            videoFee
         } = req.body;
 
         // Build profile object
@@ -89,7 +95,13 @@ exports.createOrUpdateProfile = async (req, res) => {
             licenseNumber,
             yearsOfExperience: yearsOfExperience === '' ? null : yearsOfExperience,
             education,
-            professionalBio
+            professionalBio,
+            workplace,
+            availabilityDays,
+            availabilityTime,
+            chatFee: chatFee === '' ? null : chatFee,
+            audioFee: audioFee === '' ? null : audioFee,
+            videoFee: videoFee === '' ? null : videoFee
         };
 
         // Remove undefined fields
@@ -229,6 +241,70 @@ exports.deleteProfileImage = async (req, res) => {
             data: profile
         });
     } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Submit profile for admin review
+// @route   POST /api/profile/submit-review
+// @access  Private/Doctor
+exports.submitForReview = async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ userId: req.user.id });
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Profile not found'
+            });
+        }
+
+        // Validate profile completeness
+        const requiredFields = ['firstName', 'lastName', 'specialty', 'licenseNumber', 'yearsOfExperience', 'chatFee', 'audioFee', 'videoFee'];
+        const missingFields = requiredFields.filter(field => !profile[field] || profile[field] === '');
+
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please complete all required fields before submitting',
+                missingFields
+            });
+        }
+
+        // Check if already submitted or approved
+        if (profile.verificationStatus === 'approved') {
+            return res.status(400).json({
+                success: false,
+                message: 'Your profile is already approved'
+            });
+        }
+
+        if (profile.submittedForReview && profile.verificationStatus === 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Your profile is already under review'
+            });
+        }
+
+        // Submit for review
+        profile.submittedForReview = true;
+        profile.submittedAt = Date.now();
+        profile.verificationStatus = 'pending';
+        profile.rejectionReason = ''; // Clear any previous rejection
+
+        await profile.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile submitted for review successfully',
+            data: profile
+        });
+    } catch (error) {
+        console.error('Error submitting profile for review:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',

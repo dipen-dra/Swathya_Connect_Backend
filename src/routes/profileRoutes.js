@@ -4,7 +4,8 @@ const {
     getProfile,
     createOrUpdateProfile,
     uploadProfileImage,
-    deleteProfileImage
+    deleteProfileImage,
+    submitForReview
 } = require('../controllers/profileController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -16,5 +17,7 @@ router.route('/')
 router.route('/image')
     .post(protect, upload.single('profileImage'), uploadProfileImage)
     .delete(protect, deleteProfileImage);
+
+router.post('/submit-review', protect, submitForReview);
 
 module.exports = router;

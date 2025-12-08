@@ -52,6 +52,7 @@ app.use('/api/stats', require('./routes/statsRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Error Handler
 app.use((err, req, res, next) => {
