@@ -243,4 +243,131 @@ exports.sendConsultationConfirmation = async (userEmail, userName, consultationD
     }
 };
 
+// Send consultation rejection email with refund notice
+exports.sendRejectionEmail = async (patientEmail, patientName, consultationData, rejectionReason) => {
+    const { doctorName, specialty, date, time, type, fee } = consultationData;
+
+    const consultationTypeLabels = {
+        video: '📹 Video Consultation',
+        audio: '📞 Audio Consultation',
+        chat: '💬 Text Chat Consultation'
+    };
+
+    const formattedDate = new Date(date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    const mailOptions = {
+        from: `"Swasthya Connect" <${process.env.EMAIL_USER}>`,
+        to: patientEmail,
+        subject: `Consultation Request Rejected - Refund Initiated`,
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .consultation-card { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626; }
+                    .rejection-box { background: #fef2f2; padding: 20px; border-radius: 8px; border-left: 4px solid #dc2626; margin: 20px 0; }
+                    .refund-box { background: #ecfdf5; padding: 20px; border-radius: 8px; border-left: 4px solid #10b981; margin: 20px 0; }
+                    .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+                    .detail-label { font-weight: bold; color: #666; }
+                    .detail-value { color: #333; }
+                    .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>❌ Consultation Request Rejected</h1>
+                        <p>Refund will be processed within 24 hours</p>
+                    </div>
+                    <div class="content">
+                        <p>Dear <strong>${patientName}</strong>,</p>
+                        <p>We regret to inform you that your consultation request has been rejected by the doctor.</p>
+                        
+                        <div class="consultation-card">
+                            <h3 style="margin-top: 0; color: #dc2626;">Consultation Details</h3>
+                            <div class="detail-row">
+                                <span class="detail-label">Doctor:</span>
+                                <span class="detail-value">Dr. ${doctorName}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Specialty:</span>
+                                <span class="detail-value">${specialty}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Type:</span>
+                                <span class="detail-value">${consultationTypeLabels[type] || type}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Date:</span>
+                                <span class="detail-value">${formattedDate}</span>
+                            </div>
+                            <div class="detail-row" style="border-bottom: none;">
+                                <span class="detail-label">Time:</span>
+                                <span class="detail-value">${time}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="rejection-box">
+                            <h3 style="margin-top: 0; color: #dc2626;">📋 Reason for Rejection</h3>
+                            <p style="margin: 0;">${rejectionReason}</p>
+                        </div>
+                        
+                        <div class="refund-box">
+                            <h3 style="margin-top: 0; color: #10b981;">💰 Refund Information</h3>
+                            <div class="detail-row">
+                                <span class="detail-label">Amount:</span>
+                                <span class="detail-value"><strong>NPR ${fee.toLocaleString()}</strong></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Status:</span>
+                                <span class="detail-value" style="color: #10b981;"><strong>Processing</strong></span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Expected Credit:</span>
+                                <span class="detail-value">Within 24 hours</span>
+                            </div>
+                            <div class="detail-row" style="border-bottom: none;">
+                                <span class="detail-label">Refund Method:</span>
+                                <span class="detail-value">Original payment method</span>
+                            </div>
+                        </div>
+                        
+                        <p style="margin-top: 20px;">
+                            <strong>What's Next?</strong><br>
+                            • Your refund will be processed automatically<br>
+                            • You can book another consultation with a different doctor<br>
+                            • If you have any questions, please contact our support team
+                        </p>
+                        
+                        <p>We apologize for any inconvenience caused and hope to serve you better in the future.</p>
+                    </div>
+                    <div class="footer">
+                        <p>Best regards,<br>Swasthya Connect Team</p>
+                        <p>For support, contact us at support@swasthyaconnect.com</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Rejection email sent:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('❌ Failed to send rejection email:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = exports;

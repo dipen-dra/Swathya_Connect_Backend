@@ -38,7 +38,7 @@ const consultationSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['upcoming', 'completed', 'cancelled'],
+        enum: ['upcoming', 'completed', 'cancelled', 'rejected'],
         default: 'upcoming'
     },
     fee: {
@@ -63,14 +63,45 @@ const consultationSchema = new mongoose.Schema({
         max: 5,
         default: null
     },
+    review: {
+        type: String,
+        maxlength: 500,
+        default: ''
+    },
+    ratedAt: {
+        type: Date,
+        default: null
+    },
+    rejectionReason: {
+        type: String,
+        default: ''
+    },
+    rejectedAt: {
+        type: Date,
+        default: null
+    },
+    refundStatus: {
+        type: String,
+        enum: ['none', 'pending', 'processing', 'completed'],
+        default: 'none'
+    },
+    refundInitiatedAt: {
+        type: Date,
+        default: null
+    },
     paymentStatus: {
         type: String,
-        enum: ['pending', 'paid', 'failed'],
+        enum: ['pending', 'paid', 'failed', 'refunded'],
         default: 'pending'
     },
     paymentMethod: {
         type: String,
         enum: ['Khalti', 'eSewa', 'Cash'],
+        default: null
+    },
+    prescriptionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Prescription',
         default: null
     }
 }, {

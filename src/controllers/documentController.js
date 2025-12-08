@@ -1,0 +1,295 @@
+const DoctorDocument = require('../models/DoctorDocument');
+const fs = require('fs').promises;
+const path = require('path');
+
+// @desc    Upload document
+// @route   POST /api/documents/upload
+// @access  Private (Doctor only)
+exports.uploadDocument = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please upload a file'
+            });
+        }
+
+        const { documentType, documentName, notes } = req.body;
+
+        const document = await DoctorDocument.create({
+            doctorId: req.user.id,
+            documentType,
+            documentName,
+            documentUrl: `/uploads/documents/${req.file.filename}`,
+            notes: notes || '',
+            status: 'pending'
+        });
+
+        res.status(201).json({
+            success: true,
+            data: document
+        });
+    } catch (error) {
+        console.error('Error uploading document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get doctor's documents
+// @route   GET /api/documents/my-documents
+// @access  Private (Doctor only)
+exports.getMyDocuments = async (req, res) => {
+    try {
+        const documents = await DoctorDocument.find({ doctorId: req.user.id })
+            .sort({ uploadedAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: documents
+        });
+    } catch (error) {
+        console.error('Error getting documents:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Update document
+// @route   PUT /api/documents/:id
+// @access  Private (Doctor only)
+exports.updateDocument = async (req, res) => {
+    try {
+        const { documentName, documentType, notes } = req.body;
+
+        let document = await DoctorDocument.findById(req.params.id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        // Check if document belongs to user
+        if (document.doctorId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this document'
+            });
+        }
+
+        // Update fields
+        if (documentName) document.documentName = documentName;
+        if (documentType) document.documentType = documentType;
+        if (notes !== undefined) document.notes = notes;
+
+        await document.save();
+
+        res.status(200).json({
+            success: true,
+            data: document
+        });
+    } catch (error) {
+        console.error('Error updating document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Delete document
+// @route   DELETE /api/documents/:id
+// @access  Private (Doctor only)
+exports.deleteDocument = async (req, res) => {
+    try {
+        const document = await DoctorDocument.findById(req.params.id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        // Check if document belongs to user
+        if (document.doctorId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this document'
+            });
+        }
+
+        // Delete file from filesystem
+        const filePath = path.join(__dirname, '../../', document.documentUrl);
+        try {
+            await fs.unlink(filePath);
+        } catch (err) {
+            console.log('File not found or already deleted');
+        }
+
+        // Delete document from database
+        await DoctorDocument.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Document deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get all documents (Admin only)
+// @route   GET /api/documents/all
+// @access  Private (Admin only)
+exports.getAllDocuments = async (req, res) => {
+    try {
+        const { status } = req.query;
+
+        const filter = {};
+        if (status) filter.status = status;
+
+        const documents = await DoctorDocument.find(filter)
+            .populate('doctorId', 'name email')
+            .populate('verifiedBy', 'name')
+            .sort({ uploadedAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            data: documents
+        });
+    } catch (error) {
+        console.error('Error getting all documents:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Verify document (Admin only)
+// @route   PUT /api/documents/:id/verify
+// @access  Private (Admin only)
+exports.verifyDocument = async (req, res) => {
+    try {
+        const document = await DoctorDocument.findById(req.params.id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        document.status = 'verified';
+        document.verifiedBy = req.user.id;
+        document.verifiedAt = new Date();
+
+        await document.save();
+
+        res.status(200).json({
+            success: true,
+            data: document
+        });
+    } catch (error) {
+        console.error('Error verifying document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Reject document (Admin only)
+// @route   PUT /api/documents/:id/reject
+// @access  Private (Admin only)
+exports.rejectDocument = async (req, res) => {
+    try {
+        const { reason } = req.body;
+
+        const document = await DoctorDocument.findById(req.params.id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        document.status = 'rejected';
+        document.rejectionReason = reason || 'Document rejected by admin';
+        document.verifiedBy = req.user.id;
+        document.verifiedAt = new Date();
+
+        await document.save();
+
+        res.status(200).json({
+            success: true,
+            data: document
+        });
+    } catch (error) {
+        console.error('Error rejecting document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Download document
+// @route   GET /api/documents/:id/download
+// @access  Private (Doctor only)
+exports.downloadDocument = async (req, res) => {
+    try {
+        const document = await DoctorDocument.findById(req.params.id);
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        // Check if document belongs to user
+        if (document.doctorId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to download this document'
+            });
+        }
+
+        const filePath = path.join(__dirname, '../../', document.documentUrl);
+        const fileName = document.documentName + path.extname(document.documentUrl);
+
+        // Set headers to force download
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+
+        // Send file
+        res.sendFile(filePath);
+    } catch (error) {
+        console.error('Error downloading document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};

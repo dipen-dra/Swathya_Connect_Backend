@@ -6,7 +6,8 @@ const {
     bookConsultation,
     updateConsultation,
     cancelConsultation,
-    rateConsultation
+    rateConsultation,
+    rejectConsultation
 } = require('../controllers/consultationController');
 const { protect } = require('../middleware/auth');
 
@@ -21,5 +22,8 @@ router.route('/:id')
 
 router.route('/:id/rate')
     .post(protect, rateConsultation);
+
+router.route('/:id/reject')
+    .put(protect, rejectConsultation);
 
 module.exports = router;

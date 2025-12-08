@@ -25,10 +25,11 @@ const registerUser = async (req, res) => {
         });
 
         if (user) {
-            // generateToken(res, user._id); // Optional: Login immediately after register
+            const token = generateToken(res, user._id); // Generate token and login user immediately
             res.status(201).json({
                 success: true,
                 message: 'User registered successfully',
+                token, // Include token in response body
                 user: {
                     _id: user._id,
                     fullName: user.fullName,
@@ -81,14 +82,16 @@ const loginUser = async (req, res) => {
                 });
             }
 
-            generateToken(res, adminUser._id);
+            const token = generateToken(res, adminUser._id);
             return res.json({
                 success: true,
+                token, // Include token in response body
                 user: {
                     _id: adminUser._id,
                     fullName: adminUser.fullName,
                     email: adminUser.email,
-                    role: adminUser.role
+                    role: adminUser.role,
+                    isVerified: adminUser.isVerified
                 }
             });
         }
@@ -104,14 +107,16 @@ const loginUser = async (req, res) => {
                 });
             }
 
-            generateToken(res, user._id);
+            const token = generateToken(res, user._id);
             res.json({
                 success: true,
+                token, // Include token in response body
                 user: {
                     _id: user._id,
                     fullName: user.fullName,
                     email: user.email,
                     role: user.role,
+                    isVerified: user.isVerified
                 },
             });
         } else {

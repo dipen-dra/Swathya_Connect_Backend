@@ -59,7 +59,13 @@ exports.createOrUpdateProfile = async (req, res) => {
             whatsappNumber,
             address,
             city,
-            country
+            country,
+            // Doctor-specific fields
+            specialty,
+            licenseNumber,
+            yearsOfExperience,
+            education,
+            professionalBio
         } = req.body;
 
         // Build profile object
@@ -77,7 +83,13 @@ exports.createOrUpdateProfile = async (req, res) => {
             whatsappNumber,
             address,
             city,
-            country
+            country,
+            // Doctor-specific fields
+            specialty,
+            licenseNumber,
+            yearsOfExperience: yearsOfExperience === '' ? null : yearsOfExperience,
+            education,
+            professionalBio
         };
 
         // Remove undefined fields

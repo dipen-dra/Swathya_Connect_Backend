@@ -72,9 +72,47 @@ const profileSchema = new mongoose.Schema({
     country: {
         type: String,
         default: 'Nepal'
+    },
+    // Doctor-specific fields (optional, only for doctor users)
+    specialty: {
+        type: String,
+        default: ''
+    },
+    licenseNumber: {
+        type: String,
+        default: ''
+    },
+    yearsOfExperience: {
+        type: Number,
+        default: null
+    },
+    education: {
+        type: String,
+        default: ''
+    },
+    professionalBio: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true
+});
+
+// Pre-save middleware to normalize gender to lowercase
+profileSchema.pre('save', function (next) {
+    if (this.gender && this.gender !== '') {
+        this.gender = this.gender.toLowerCase();
+    }
+    next();
+});
+
+// Pre-update middleware to normalize gender to lowercase
+profileSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate();
+    if (update.$set && update.$set.gender && update.$set.gender !== '') {
+        update.$set.gender = update.$set.gender.toLowerCase();
+    }
+    next();
 });
 
 // Create index on userId for faster lookups

@@ -1,28 +1,27 @@
-const twilio = require('twilio');
+const axios = require('axios');
 
-// Initialize Twilio client
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const whatsappFrom = process.env.TWILIO_WHATSAPP_FROM;
+// WhatsApp Cloud API credentials
+const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
-let client = null;
-
-// Only initialize if credentials are available
-if (accountSid && authToken && whatsappFrom) {
-    client = twilio(accountSid, authToken);
-    console.log('✅ WhatsApp service initialized');
+// Check if credentials are available
+if (phoneNumberId && accessToken) {
+    console.log('✅ WhatsApp Cloud API initialized');
 } else {
-    console.log('⚠️ WhatsApp service not configured (missing Twilio credentials)');
+    console.log('⚠️ WhatsApp Cloud API not configured (missing credentials)');
 }
 
-// Send WhatsApp medicine reminder
+// Send WhatsApp medicine reminder using Cloud API
 exports.sendWhatsAppReminder = async (phoneNumber, userName, reminderData) => {
-    if (!client) {
+    if (!phoneNumberId || !accessToken) {
         console.log('⚠️ WhatsApp service not available - skipping WhatsApp reminder');
-        return { success: false, error: 'WhatsApp service not configured' };
+        return { success: false, error: 'WhatsApp Cloud API not configured' };
     }
 
     const { medicineName, dosage, times, instructions } = reminderData;
+
+    // Remove any spaces from the phone number
+    const cleanPhoneNumber = phoneNumber.replace(/\s/g, '');
 
     // Format the message
     const message = `🏥 *Swasthya Connect - Medicine Reminder*
@@ -41,20 +40,32 @@ Please take your medicine as prescribed by your doctor.
 _This is an automated reminder from Swasthya Connect_`;
 
     try {
-        // Remove any spaces from the phone number
-        const cleanPhoneNumber = phoneNumber.replace(/\s/g, '');
+        console.log('📤 Sending WhatsApp message to:', cleanPhoneNumber);
+        console.log('📤 Using Phone Number ID:', phoneNumberId);
 
-        const response = await client.messages.create({
-            from: whatsappFrom,
-            to: `whatsapp:${cleanPhoneNumber}`,
-            body: message
-        });
+        const response = await axios.post(
+            `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+            {
+                messaging_product: 'whatsapp',
+                to: cleanPhoneNumber,
+                type: 'text',
+                text: {
+                    body: message
+                }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
 
-        console.log('✅ WhatsApp reminder sent:', response.sid);
-        return { success: true, messageId: response.sid };
+        console.log('✅ WhatsApp reminder sent:', response.data.messages[0].id);
+        return { success: true, messageId: response.data.messages[0].id };
     } catch (error) {
-        console.error('❌ Failed to send WhatsApp reminder:', error.message);
-        return { success: false, error: error.message };
+        console.error('❌ Failed to send WhatsApp reminder:', error.response?.data || error.message);
+        return { success: false, error: error.response?.data || error.message };
     }
 };
 

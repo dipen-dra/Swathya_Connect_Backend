@@ -1,5 +1,7 @@
 const Consultation = require('../models/Consultation');
 const Doctor = require('../models/Doctor');
+const User = require('../models/User');
+const emailService = require('../utils/emailService');
 
 // @desc    Get all consultations for user
 // @route   GET /api/consultations
@@ -270,3 +272,83 @@ exports.rateConsultation = async (req, res) => {
         });
     }
 };
+
+// @desc    Reject consultation (Doctor only)
+// @route   PUT /api/consultations/:id/reject
+// @access  Private (Doctor)
+exports.rejectConsultation = async (req, res) => {
+    try {
+        const { rejectionReason } = req.body;
+
+        if (!rejectionReason || rejectionReason.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide a reason for rejection'
+            });
+        }
+
+        const consultation = await Consultation.findById(req.params.id);
+
+        if (!consultation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Consultation not found'
+            });
+        }
+
+        // Only pending/upcoming consultations can be rejected
+        if (consultation.status !== 'upcoming') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only upcoming consultations can be rejected'
+            });
+        }
+
+        // Get patient details for email
+        const patient = await User.findById(consultation.patientId);
+        if (!patient) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient not found'
+            });
+        }
+
+        // Update consultation status
+        consultation.status = 'rejected';
+        consultation.rejectionReason = rejectionReason;
+        consultation.rejectedAt = new Date();
+        consultation.refundStatus = 'processing';
+        consultation.refundInitiatedAt = new Date();
+        consultation.paymentStatus = 'refunded';
+        await consultation.save();
+
+        // Send rejection email to patient
+        await emailService.sendRejectionEmail(
+            patient.email,
+            patient.name,
+            {
+                doctorName: consultation.doctorName,
+                specialty: consultation.specialty,
+                date: consultation.date,
+                time: consultation.time,
+                type: consultation.type,
+                fee: consultation.fee
+            },
+            rejectionReason
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Consultation rejected and refund initiated. Patient has been notified via email.',
+            data: consultation
+        });
+    } catch (error) {
+        console.error('Error rejecting consultation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+

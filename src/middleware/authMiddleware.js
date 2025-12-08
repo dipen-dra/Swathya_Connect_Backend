@@ -4,7 +4,14 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
     let token;
 
-    token = req.cookies.jwt;
+    // Check for token in cookie (HTTP-only)
+    if (req.cookies.jwt) {
+        token = req.cookies.jwt;
+    }
+    // Check for token in Authorization header (Bearer token)
+    else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
 
     if (token) {
         try {
@@ -14,7 +21,7 @@ const protect = async (req, res, next) => {
 
             next();
         } catch (error) {
-            console.error(error);
+            console.error('Token verification error:', error);
             res.status(401).json({ success: false, message: 'Not authorized, token failed' });
         }
     } else {
@@ -22,4 +29,25 @@ const protect = async (req, res, next) => {
     }
 };
 
-module.exports = { protect };
+// Authorize middleware for role-based access control
+const authorize = (...roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Not authorized'
+            });
+        }
+
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: `User role '${req.user.role}' is not authorized to access this route`
+            });
+        }
+
+        next();
+    };
+};
+
+module.exports = { protect, authorize };
