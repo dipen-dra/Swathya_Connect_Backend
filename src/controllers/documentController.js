@@ -1,4 +1,5 @@
 const DoctorDocument = require('../models/DoctorDocument');
+const User = require('../models/User');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -47,9 +48,29 @@ exports.getMyDocuments = async (req, res) => {
         const documents = await DoctorDocument.find({ doctorId: req.user.id })
             .sort({ uploadedAt: -1 });
 
+        // Fetch user's verification document
+        const user = await User.findById(req.user.id);
+        const allDocuments = [...documents];
+
+        // If user has a verification document, add it to the beginning of the array
+        if (user && user.verificationDocument) {
+            const verificationDoc = {
+                _id: 'verification-doc',
+                documentType: 'verification',
+                documentName: 'Verification Document',
+                documentUrl: user.verificationDocument,
+                notes: 'Document uploaded during registration',
+                status: 'verified',
+                uploadedAt: user.createdAt,
+                verifiedAt: user.createdAt,
+                isVerificationDocument: true
+            };
+            allDocuments.unshift(verificationDoc);
+        }
+
         res.status(200).json({
             success: true,
-            data: documents
+            data: allDocuments
         });
     } catch (error) {
         console.error('Error getting documents:', error);
@@ -258,25 +279,44 @@ exports.rejectDocument = async (req, res) => {
 // @access  Private (Doctor only)
 exports.downloadDocument = async (req, res) => {
     try {
-        const document = await DoctorDocument.findById(req.params.id);
+        let documentUrl, documentName;
 
-        if (!document) {
-            return res.status(404).json({
-                success: false,
-                message: 'Document not found'
-            });
+        // Handle verification document
+        if (req.params.id === 'verification-doc') {
+            const user = await User.findById(req.user.id);
+            if (!user || !user.verificationDocument) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Verification document not found'
+                });
+            }
+            documentUrl = user.verificationDocument;
+            documentName = 'Verification Document';
+        } else {
+            // Handle regular documents
+            const document = await DoctorDocument.findById(req.params.id);
+
+            if (!document) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Document not found'
+                });
+            }
+
+            // Check if document belongs to user
+            if (document.doctorId.toString() !== req.user.id) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to download this document'
+                });
+            }
+
+            documentUrl = document.documentUrl;
+            documentName = document.documentName;
         }
 
-        // Check if document belongs to user
-        if (document.doctorId.toString() !== req.user.id) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to download this document'
-            });
-        }
-
-        const filePath = path.join(__dirname, '../../', document.documentUrl);
-        const fileName = document.documentName + path.extname(document.documentUrl);
+        const filePath = path.join(__dirname, '../../', documentUrl);
+        const fileName = documentName + path.extname(documentUrl);
 
         // Set headers to force download
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
