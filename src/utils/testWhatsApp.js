@@ -36,7 +36,7 @@ async function testWhatsAppTemplate() {
 
     // Test data
     const testData = {
-        userName: 'Dipanshu',
+        userName: 'Dipendra',
         reminderData: {
             medicineName: 'Paracetamol',
             dosage: '500mg',

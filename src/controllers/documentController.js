@@ -333,3 +333,74 @@ exports.downloadDocument = async (req, res) => {
         });
     }
 };
+
+// @desc    View document (inline)
+// @route   GET /api/documents/:id/view
+// @access  Private (Doctor only)
+exports.viewDocument = async (req, res) => {
+    try {
+        let documentUrl, documentName;
+
+        // Handle verification document
+        if (req.params.id === 'verification-doc') {
+            const user = await User.findById(req.user.id);
+            if (!user || !user.verificationDocument) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Verification document not found'
+                });
+            }
+            documentUrl = user.verificationDocument;
+            documentName = 'Verification Document';
+        } else {
+            // Handle regular documents
+            const document = await DoctorDocument.findById(req.params.id);
+
+            if (!document) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Document not found'
+                });
+            }
+
+            // Check if document belongs to user
+            if (document.doctorId.toString() !== req.user.id) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Not authorized to view this document'
+                });
+            }
+
+            documentUrl = document.documentUrl;
+            documentName = document.documentName;
+        }
+
+        const filePath = path.join(__dirname, '../../', documentUrl);
+        const ext = path.extname(documentUrl).toLowerCase();
+
+        // Set appropriate content type based on file extension
+        let contentType = 'application/octet-stream';
+        if (ext === '.pdf') {
+            contentType = 'application/pdf';
+        } else if (ext === '.jpg' || ext === '.jpeg') {
+            contentType = 'image/jpeg';
+        } else if (ext === '.png') {
+            contentType = 'image/png';
+        }
+
+        // Set headers to display inline (view in browser)
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Content-Type', contentType);
+
+        // Send file
+        res.sendFile(filePath);
+    } catch (error) {
+        console.error('Error viewing document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+

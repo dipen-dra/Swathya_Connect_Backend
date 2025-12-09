@@ -8,7 +8,8 @@ const {
     getAllDocuments,
     verifyDocument,
     rejectDocument,
-    downloadDocument
+    downloadDocument,
+    viewDocument
 } = require('../controllers/documentController');
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -16,6 +17,7 @@ const upload = require('../middleware/upload');
 // Doctor routes
 router.post('/upload', protect, authorize('doctor'), upload.single('document'), uploadDocument);
 router.get('/my-documents', protect, authorize('doctor'), getMyDocuments);
+router.get('/:id/view', protect, authorize('doctor'), viewDocument);
 router.get('/:id/download', protect, authorize('doctor'), downloadDocument);
 router.put('/:id', protect, authorize('doctor'), updateDocument);
 router.delete('/:id', protect, authorize('doctor'), deleteDocument);
