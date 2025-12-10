@@ -29,6 +29,13 @@ const storage = multer.diskStorage({
 
 // Check file type
 function checkFileType(file, cb) {
+    console.log('📁 Upload middleware - File info:', {
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+    });
+
     // For documents, allow PDF and images
     if (file.fieldname === 'document') {
         const filetypes = /jpeg|jpg|png|gif|pdf/;
@@ -44,7 +51,10 @@ function checkFileType(file, cb) {
         // For profile images, only allow images
         const filetypes = /jpeg|jpg|png|gif/;
         const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = filetypes.test(file.mimetype);
+        // More lenient mimetype check - accept image/* mimetypes
+        const mimetype = file.mimetype.startsWith('image/');
+
+        console.log('🔍 Image validation:', { extname, mimetype, fileExt: path.extname(file.originalname) });
 
         if (mimetype && extname) {
             return cb(null, true);

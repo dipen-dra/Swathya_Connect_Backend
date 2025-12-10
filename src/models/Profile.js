@@ -73,6 +73,10 @@ const profileSchema = new mongoose.Schema({
         type: String,
         default: 'Nepal'
     },
+    panNumber: {
+        type: String,
+        default: ''
+    },
     // Doctor-specific fields (optional, only for doctor users)
     specialty: {
         type: String,

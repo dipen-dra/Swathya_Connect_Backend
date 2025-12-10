@@ -60,6 +60,7 @@ exports.createOrUpdateProfile = async (req, res) => {
             address,
             city,
             country,
+            panNumber,
             // Doctor-specific fields
             specialty,
             licenseNumber,
@@ -90,6 +91,7 @@ exports.createOrUpdateProfile = async (req, res) => {
             address,
             city,
             country,
+            panNumber,
             // Doctor-specific fields
             specialty,
             licenseNumber,
