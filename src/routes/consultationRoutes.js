@@ -7,6 +7,7 @@ const {
     updateConsultation,
     cancelConsultation,
     rateConsultation,
+    approveConsultation,
     rejectConsultation
 } = require('../controllers/consultationController');
 const { protect } = require('../middleware/auth');
@@ -22,6 +23,9 @@ router.route('/:id')
 
 router.route('/:id/rate')
     .post(protect, rateConsultation);
+
+router.route('/:id/approve')
+    .put(protect, approveConsultation);
 
 router.route('/:id/reject')
     .put(protect, rejectConsultation);

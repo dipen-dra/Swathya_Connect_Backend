@@ -38,7 +38,7 @@ const consultationSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['upcoming', 'completed', 'cancelled', 'rejected'],
+        enum: ['upcoming', 'approved', 'completed', 'cancelled', 'rejected'],
         default: 'upcoming'
     },
     fee: {

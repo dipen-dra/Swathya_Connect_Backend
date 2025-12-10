@@ -305,6 +305,87 @@ exports.rateConsultation = async (req, res) => {
     }
 };
 
+// @desc    Approve consultation (Doctor only)
+// @route   PUT /api/consultations/:id/approve
+// @access  Private (Doctor)
+exports.approveConsultation = async (req, res) => {
+    try {
+        const consultation = await Consultation.findById(req.params.id);
+
+        if (!consultation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Consultation not found'
+            });
+        }
+
+        // Make sure the user is a doctor
+        if (req.user.role !== 'doctor') {
+            return res.status(403).json({
+                success: false,
+                message: 'Only doctors can approve consultations'
+            });
+        }
+
+        // Make sure the doctor owns this consultation
+        if (consultation.doctorId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to approve this consultation'
+            });
+        }
+
+        // Only upcoming consultations can be approved
+        if (consultation.status !== 'upcoming') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only upcoming consultations can be approved'
+            });
+        }
+
+        // Update consultation status to approved
+        consultation.status = 'approved';
+        consultation.approvedAt = new Date();
+        await consultation.save();
+
+        // Get patient details for email notification
+        const patient = await User.findById(consultation.patientId);
+
+        // Send approval email to patient (optional)
+        if (patient && emailService.sendApprovalEmail) {
+            try {
+                await emailService.sendApprovalEmail(
+                    patient.email,
+                    patient.name,
+                    {
+                        doctorName: consultation.doctorName,
+                        specialty: consultation.specialty,
+                        date: consultation.date,
+                        time: consultation.time,
+                        type: consultation.type
+                    }
+                );
+            } catch (emailError) {
+                console.error('Failed to send approval email:', emailError);
+                // Don't fail the approval if email fails
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Consultation approved successfully',
+            data: consultation
+        });
+    } catch (error) {
+        console.error('Error approving consultation:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
 // @desc    Reject consultation (Doctor only)
 // @route   PUT /api/consultations/:id/reject
 // @access  Private (Doctor)
