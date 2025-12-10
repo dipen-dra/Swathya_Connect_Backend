@@ -1,4 +1,6 @@
 const Pharmacy = require('../models/Pharmacy');
+const Profile = require('../models/Profile');
+const User = require('../models/User');
 
 // @desc    Get all pharmacies
 // @route   GET /api/pharmacies
@@ -7,31 +9,55 @@ exports.getPharmacies = async (req, res) => {
     try {
         const { search, sort } = req.query;
 
-        let query = {};
+        // Build query - ONLY show approved pharmacies (matching doctor pattern)
+        let query = {
+            verificationStatus: 'approved'
+        };
 
         // Search by name
         if (search) {
-            query.name = { $regex: search, $options: 'i' };
+            query.$or = [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } }
+            ];
         }
 
-        // Execute query
-        let pharmacies = Pharmacy.find(query);
+        // Execute query and populate user details
+        let pharmacies = await Profile.find(query).populate('userId', 'fullName email role');
+
+        // Filter to ensure only pharmacy role profiles
+        pharmacies = pharmacies.filter(p => p.userId && p.userId.role === 'pharmacy');
+
+        // Transform pharmacies data
+        const transformedPharmacies = pharmacies.map(pharmacy => ({
+            id: pharmacy._id,
+            userId: pharmacy.userId._id,
+            name: `${pharmacy.firstName} ${pharmacy.lastName}`.trim() || pharmacy.userId.fullName,
+            address: pharmacy.address || 'Not specified',
+            city: pharmacy.city || 'Kathmandu',
+            phone: pharmacy.phoneNumber || 'Not specified',
+            rating: 4.5, // Can be enhanced with real ratings later
+            distance: '2.5 km', // Can be calculated based on user location
+            deliveryTime: '30-45 min',
+            isOpen: true,
+            specialties: ['Prescription Medicines', 'OTC Drugs', 'Health Products'],
+            panNumber: pharmacy.panNumber || '',
+            licenseNumber: pharmacy.pharmacyLicenseNumber || ''
+        }));
 
         // Sort
+        let sortedPharmacies = transformedPharmacies;
         if (sort === 'rating') {
-            pharmacies = pharmacies.sort({ rating: -1 });
-        } else {
-            pharmacies = pharmacies.sort({ createdAt: -1 });
+            sortedPharmacies = transformedPharmacies.sort((a, b) => b.rating - a.rating);
         }
-
-        pharmacies = await pharmacies;
 
         res.status(200).json({
             success: true,
-            count: pharmacies.length,
-            data: pharmacies
+            count: sortedPharmacies.length,
+            data: sortedPharmacies
         });
     } catch (error) {
+        console.error('Error in getPharmacies:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',
@@ -124,7 +150,6 @@ exports.updatePharmacy = async (req, res) => {
 // ============ ORDER MANAGEMENT ============
 
 const Order = require('../models/Order');
-const User = require('../models/User');
 
 // @desc    Get all orders for pharmacy
 // @route   GET /api/pharmacy/orders

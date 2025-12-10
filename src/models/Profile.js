@@ -150,6 +150,20 @@ const profileSchema = new mongoose.Schema({
     submittedAt: {
         type: Date,
         default: null
+    },
+    verificationDocument: {
+        type: String,
+        default: ''
+    },
+    // Pharmacy-specific verification fields
+    pharmacyLicenseNumber: {
+        type: String,
+        default: ''
+    },
+    verificationDocumentType: {
+        type: String,
+        enum: ['license', 'registration', 'certificate', ''],
+        default: ''
     }
 }, {
     timestamps: true

@@ -72,7 +72,9 @@ exports.createOrUpdateProfile = async (req, res) => {
             availabilityTime,
             chatFee,
             audioFee,
-            videoFee
+            videoFee,
+            // Pharmacy-specific fields
+            pharmacyLicenseNumber
         } = req.body;
 
         // Build profile object
@@ -103,7 +105,9 @@ exports.createOrUpdateProfile = async (req, res) => {
             availabilityTime,
             chatFee: chatFee === '' ? null : chatFee,
             audioFee: audioFee === '' ? null : audioFee,
-            videoFee: videoFee === '' ? null : videoFee
+            videoFee: videoFee === '' ? null : videoFee,
+            // Pharmacy-specific fields
+            pharmacyLicenseNumber
         };
 
         // Remove undefined fields
@@ -243,10 +247,10 @@ exports.deleteProfileImage = async (req, res) => {
         try {
             await fs.unlink(imagePath);
         } catch (err) {
-            console.log('Image file not found');
+            console.log('Image file not found or already deleted');
         }
 
-        // Update profile
+        // Remove image path from profile
         profile.profileImage = null;
         await profile.save();
 
@@ -256,6 +260,7 @@ exports.deleteProfileImage = async (req, res) => {
             data: profile
         });
     } catch (error) {
+        console.error('Error deleting profile image:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',
@@ -264,9 +269,65 @@ exports.deleteProfileImage = async (req, res) => {
     }
 };
 
+// @desc    Upload verification document
+// @route   POST /api/profile/verification-document
+// @access  Private
+exports.uploadVerificationDocument = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please upload a file'
+            });
+        }
+
+        const { documentType } = req.body;
+        let profile = await Profile.findOne({ userId: req.user.id });
+
+        if (!profile) {
+            profile = await Profile.create({
+                userId: req.user.id,
+                firstName: req.user.fullName.split(' ')[0] || '',
+                lastName: req.user.fullName.split(' ').slice(1).join(' ') || ''
+            });
+        }
+
+        // Delete old verification document if exists
+        if (profile.verificationDocument) {
+            const oldDocPath = path.join(__dirname, '../../', profile.verificationDocument);
+            try {
+                await fs.unlink(oldDocPath);
+            } catch (err) {
+                console.log('Old verification document not found');
+            }
+        }
+
+        // Update profile with new verification document
+        profile.verificationDocument = `/uploads/${req.file.filename}`;
+        if (documentType) {
+            profile.verificationDocumentType = documentType;
+        }
+        await profile.save();
+
+        res.status(200).json({
+            success: true,
+            data: profile,
+            message: 'Verification document uploaded successfully'
+        });
+    } catch (error) {
+        console.error('Error uploading verification document:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+
 // @desc    Submit profile for admin review
 // @route   POST /api/profile/submit-review
-// @access  Private/Doctor
+// @access  Private/Doctor/Pharmacy
 exports.submitForReview = async (req, res) => {
     try {
         const profile = await Profile.findOne({ userId: req.user.id });
@@ -278,8 +339,15 @@ exports.submitForReview = async (req, res) => {
             });
         }
 
-        // Validate profile completeness
-        const requiredFields = ['firstName', 'lastName', 'specialty', 'licenseNumber', 'yearsOfExperience', 'chatFee', 'audioFee', 'videoFee'];
+        // Validate profile completeness based on user role
+        let requiredFields = ['firstName', 'lastName'];
+
+        if (req.user.role === 'doctor') {
+            requiredFields = [...requiredFields, 'specialty', 'licenseNumber', 'yearsOfExperience', 'chatFee', 'audioFee', 'videoFee'];
+        } else if (req.user.role === 'pharmacy') {
+            requiredFields = [...requiredFields, 'pharmacyLicenseNumber', 'panNumber'];
+        }
+
         const missingFields = requiredFields.filter(field => !profile[field] || profile[field] === '');
 
         if (missingFields.length > 0) {
@@ -287,6 +355,14 @@ exports.submitForReview = async (req, res) => {
                 success: false,
                 message: 'Please complete all required fields before submitting',
                 missingFields
+            });
+        }
+
+        // Check if verification document is uploaded (required for both doctors and pharmacies)
+        if (!profile.verificationDocument || profile.verificationDocument === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Please upload a verification document before submitting'
             });
         }
 
