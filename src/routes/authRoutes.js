@@ -7,6 +7,9 @@ const {
     loginUser,
     logoutUser,
     getUserProfile,
+    forgotPassword,
+    verifyResetOTP,
+    resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -48,6 +51,11 @@ router.post('/register', upload.single('verificationDocument'), registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/me', protect, getUserProfile);
+
+// Password Reset Routes
+router.post('/forgot-password', forgotPassword);
+router.post('/verify-otp', verifyResetOTP);
+router.put('/reset-password', resetPassword);
 
 // Dashboard Routes (Protected & Role Based)
 router.get('/admin/dashboard', protect, authorize('admin'), (req, res) => {

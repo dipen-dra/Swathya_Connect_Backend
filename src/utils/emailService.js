@@ -370,4 +370,77 @@ exports.sendRejectionEmail = async (patientEmail, patientName, consultationData,
     }
 };
 
+// Send password reset OTP email
+exports.sendPasswordResetOTP = async (userEmail, userName, otp) => {
+    const mailOptions = {
+        from: `"Swasthya Connect" <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: '🔐 Password Reset OTP - Swasthya Connect',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .otp-box { background: white; padding: 30px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px dashed #667eea; }
+                    .otp-code { font-size: 48px; font-weight: bold; color: #667eea; letter-spacing: 10px; font-family: 'Courier New', monospace; margin: 20px 0; }
+                    .warning-box { background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 3px solid #ffc107; margin-top: 20px; }
+                    .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+                    .timer { background: #fef2f2; padding: 15px; border-radius: 5px; border-left: 3px solid #dc2626; margin-top: 15px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🔐 Password Reset Request</h1>
+                        <p>Your verification code is ready</p>
+                    </div>
+                    <div class="content">
+                        <p>Hello <strong>${userName}</strong>,</p>
+                        <p>We received a request to reset your password. Use the OTP below to proceed:</p>
+                        
+                        <div class="otp-box">
+                            <p style="margin: 0; color: #666; font-size: 14px;">Your One-Time Password</p>
+                            <div class="otp-code">${otp}</div>
+                            <p style="margin: 0; color: #666; font-size: 12px;">Enter this code on the verification page</p>
+                        </div>
+                        
+                        <div class="timer">
+                            <strong>⏰ Important:</strong> This OTP will expire in <strong>10 minutes</strong>
+                        </div>
+                        
+                        <div class="warning-box">
+                            <strong>🔒 Security Tips:</strong><br>
+                            • Never share this OTP with anyone<br>
+                            • Swasthya Connect will never ask for your OTP<br>
+                            • If you didn't request this, please ignore this email
+                        </div>
+                        
+                        <p style="margin-top: 20px;">
+                            If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+                        </p>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated email from Swasthya Connect</p>
+                        <p>For support, contact us at support@swasthyaconnect.com</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✅ Password reset OTP email sent:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('❌ Failed to send OTP email:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = exports;
