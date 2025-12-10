@@ -120,3 +120,174 @@ exports.updatePharmacy = async (req, res) => {
         });
     }
 };
+
+// ============ ORDER MANAGEMENT ============
+
+const Order = require('../models/Order');
+const User = require('../models/User');
+
+// @desc    Get all orders for pharmacy
+// @route   GET /api/pharmacy/orders
+// @access  Private/Pharmacy
+exports.getOrders = async (req, res) => {
+    try {
+        const orders = await Order.find({ pharmacyId: req.user.id })
+            .populate('patientId', 'fullName email phone')
+            .sort({ orderDate: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: orders.length,
+            data: orders
+        });
+    } catch (error) {
+        console.error('Get orders error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching orders'
+        });
+    }
+};
+
+// @desc    Get order statistics
+// @route   GET /api/pharmacy/stats
+// @access  Private/Pharmacy
+exports.getStats = async (req, res) => {
+    try {
+        const pharmacyId = req.user.id;
+
+        // Total orders
+        const totalOrders = await Order.countDocuments({ pharmacyId });
+
+        // Pending orders
+        const pendingOrders = await Order.countDocuments({
+            pharmacyId,
+            status: 'pending'
+        });
+
+        // This month revenue
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const thisMonthOrders = await Order.find({
+            pharmacyId,
+            status: 'completed',
+            completedDate: { $gte: startOfMonth }
+        });
+
+        const thisMonthRevenue = thisMonthOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+        // Active customers (unique patients who ordered this month)
+        const activeCustomers = await Order.distinct('patientId', {
+            pharmacyId,
+            orderDate: { $gte: startOfMonth }
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                totalOrders,
+                pendingOrders,
+                thisMonthRevenue,
+                activeCustomers: activeCustomers.length
+            }
+        });
+    } catch (error) {
+        console.error('Get stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching statistics'
+        });
+    }
+};
+
+// @desc    Update order status
+// @route   PUT /api/pharmacy/orders/:id/status
+// @access  Private/Pharmacy
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+
+        if (!['pending', 'processing', 'completed', 'cancelled'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid status'
+            });
+        }
+
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Verify pharmacy owns this order
+        if (order.pharmacyId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this order'
+            });
+        }
+
+        order.status = status;
+        if (status === 'completed') {
+            order.completedDate = Date.now();
+        }
+
+        await order.save();
+
+        res.status(200).json({
+            success: true,
+            data: order
+        });
+    } catch (error) {
+        console.error('Update order status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating order status'
+        });
+    }
+};
+
+// @desc    Create new order (for patients)
+// @route   POST /api/pharmacy/orders
+// @access  Private/Patient
+exports.createOrder = async (req, res) => {
+    try {
+        const { pharmacyId, medicines, prescriptionRequired, prescriptionImage, totalAmount } = req.body;
+
+        // Verify pharmacy exists
+        const pharmacy = await User.findById(pharmacyId);
+        if (!pharmacy || pharmacy.role !== 'pharmacy') {
+            return res.status(404).json({
+                success: false,
+                message: 'Pharmacy not found'
+            });
+        }
+
+        const order = await Order.create({
+            patientId: req.user.id,
+            patientName: req.user.fullName,
+            pharmacyId,
+            medicines,
+            prescriptionRequired,
+            prescriptionImage,
+            totalAmount
+        });
+
+        res.status(201).json({
+            success: true,
+            data: order
+        });
+    } catch (error) {
+        console.error('Create order error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating order'
+        });
+    }
+};
