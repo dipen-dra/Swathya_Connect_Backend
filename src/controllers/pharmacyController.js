@@ -291,3 +291,140 @@ exports.createOrder = async (req, res) => {
         });
     }
 };
+
+// ============ INVENTORY MANAGEMENT ============
+
+const Inventory = require('../models/Inventory');
+
+// @desc    Get all inventory items for pharmacy
+// @route   GET /api/pharmacy/inventory
+// @access  Private/Pharmacy
+exports.getInventory = async (req, res) => {
+    try {
+        const inventory = await Inventory.find({ pharmacyId: req.user.id })
+            .sort({ medicineName: 1 });
+
+        res.status(200).json({
+            success: true,
+            count: inventory.length,
+            data: inventory
+        });
+    } catch (error) {
+        console.error('Get inventory error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching inventory'
+        });
+    }
+};
+
+// @desc    Add medicine to inventory
+// @route   POST /api/pharmacy/inventory
+// @access  Private/Pharmacy
+exports.addInventoryItem = async (req, res) => {
+    try {
+        const { medicineName, genericName, manufacturer, dosage, quantity, price, expiryDate, category, lowStockThreshold } = req.body;
+
+        const inventoryItem = await Inventory.create({
+            pharmacyId: req.user.id,
+            medicineName,
+            genericName,
+            manufacturer,
+            dosage,
+            quantity,
+            price,
+            expiryDate,
+            category,
+            lowStockThreshold
+        });
+
+        res.status(201).json({
+            success: true,
+            data: inventoryItem
+        });
+    } catch (error) {
+        console.error('Add inventory item error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error adding inventory item'
+        });
+    }
+};
+
+// @desc    Update inventory item
+// @route   PUT /api/pharmacy/inventory/:id
+// @access  Private/Pharmacy
+exports.updateInventoryItem = async (req, res) => {
+    try {
+        const item = await Inventory.findById(req.params.id);
+
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Inventory item not found'
+            });
+        }
+
+        // Verify pharmacy owns this item
+        if (item.pharmacyId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this item'
+            });
+        }
+
+        const updatedItem = await Inventory.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            { new: true, runValidators: true }
+        );
+
+        res.status(200).json({
+            success: true,
+            data: updatedItem
+        });
+    } catch (error) {
+        console.error('Update inventory item error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating inventory item'
+        });
+    }
+};
+
+// @desc    Delete inventory item
+// @route   DELETE /api/pharmacy/inventory/:id
+// @access  Private/Pharmacy
+exports.deleteInventoryItem = async (req, res) => {
+    try {
+        const item = await Inventory.findById(req.params.id);
+
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: 'Inventory item not found'
+            });
+        }
+
+        // Verify pharmacy owns this item
+        if (item.pharmacyId.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to delete this item'
+            });
+        }
+
+        await Inventory.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Inventory item deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete inventory item error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting inventory item'
+        });
+    }
+};

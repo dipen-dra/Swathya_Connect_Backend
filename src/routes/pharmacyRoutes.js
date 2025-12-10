@@ -8,7 +8,11 @@ const {
     getOrders,
     getStats,
     updateOrderStatus,
-    createOrder
+    createOrder,
+    getInventory,
+    addInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem
 } = require('../controllers/pharmacyController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -26,5 +30,11 @@ router.get('/dashboard/orders', protect, authorize('pharmacy'), getOrders);
 router.get('/dashboard/stats', protect, authorize('pharmacy'), getStats);
 router.put('/dashboard/orders/:id/status', protect, authorize('pharmacy'), updateOrderStatus);
 router.post('/dashboard/orders/create', protect, authorize('patient'), createOrder);
+
+// Inventory management routes
+router.get('/dashboard/inventory', protect, authorize('pharmacy'), getInventory);
+router.post('/dashboard/inventory', protect, authorize('pharmacy'), addInventoryItem);
+router.put('/dashboard/inventory/:id', protect, authorize('pharmacy'), updateInventoryItem);
+router.delete('/dashboard/inventory/:id', protect, authorize('pharmacy'), deleteInventoryItem);
 
 module.exports = router;
