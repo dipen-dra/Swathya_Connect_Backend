@@ -66,6 +66,22 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Notification Preferences
+    notificationPreferences: {
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: false },
+        push: { type: Boolean, default: true },
+        consultationReminders: { type: Boolean, default: true }
+    },
+    // Account Status
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    deactivatedAt: {
+        type: Date,
+        default: null
+    },
     createdAt: {
         type: Date,
         default: Date.now

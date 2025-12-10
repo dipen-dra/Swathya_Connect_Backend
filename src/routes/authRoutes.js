@@ -10,6 +10,11 @@ const {
     forgotPassword,
     verifyResetOTP,
     resetPassword,
+    changePassword,
+    getSettings,
+    updateNotificationPreferences,
+    deactivateAccount,
+    deleteAccount,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -56,6 +61,13 @@ router.get('/me', protect, getUserProfile);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-otp', verifyResetOTP);
 router.put('/reset-password', resetPassword);
+
+// Account Settings Routes
+router.put('/change-password', protect, changePassword);
+router.get('/settings', protect, getSettings);
+router.put('/settings/notifications', protect, updateNotificationPreferences);
+router.put('/account/deactivate', protect, deactivateAccount);
+router.delete('/account', protect, deleteAccount);
 
 // Dashboard Routes (Protected & Role Based)
 router.get('/admin/dashboard', protect, authorize('admin'), (req, res) => {

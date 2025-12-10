@@ -297,6 +297,193 @@ const resetPassword = async (req, res) => {
     }
 };
 
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide current and new password'
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be at least 6 characters long'
+            });
+        }
+
+        // Get user with password
+        const user = await User.findById(req.user.id).select('+password');
+
+        // Verify current password
+        const isMatch = await user.matchPassword(currentPassword);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+
+        // Check if new password is same as current password
+        const isSamePassword = await user.matchPassword(newPassword);
+        if (isSamePassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be different from your current password'
+            });
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully'
+        });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error changing password'
+        });
+    }
+};
+
+// @desc    Get user settings
+// @route   GET /api/auth/settings
+// @access  Private
+const getSettings = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                notificationPreferences: user.notificationPreferences,
+                isActive: user.isActive,
+                email: user.email,
+                fullName: user.fullName
+            }
+        });
+    } catch (error) {
+        console.error('Get settings error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching settings'
+        });
+    }
+};
+
+// @desc    Update notification preferences
+// @route   PUT /api/auth/settings/notifications
+// @access  Private
+const updateNotificationPreferences = async (req, res) => {
+    try {
+        const { email, sms, push, consultationReminders } = req.body;
+
+        const user = await User.findById(req.user.id);
+
+        // Update notification preferences
+        if (email !== undefined) user.notificationPreferences.email = email;
+        if (sms !== undefined) user.notificationPreferences.sms = sms;
+        if (push !== undefined) user.notificationPreferences.push = push;
+        if (consultationReminders !== undefined) user.notificationPreferences.consultationReminders = consultationReminders;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Notification preferences updated',
+            data: user.notificationPreferences
+        });
+    } catch (error) {
+        console.error('Update notifications error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating notification preferences'
+        });
+    }
+};
+
+// @desc    Deactivate account
+// @route   PUT /api/auth/account/deactivate
+// @access  Private
+const deactivateAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+
+        user.isActive = false;
+        user.deactivatedAt = Date.now();
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Account deactivated successfully'
+        });
+    } catch (error) {
+        console.error('Deactivate account error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deactivating account'
+        });
+    }
+};
+
+// @desc    Delete account
+// @route   DELETE /api/auth/account
+// @access  Private
+const deleteAccount = async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide your password to confirm deletion'
+            });
+        }
+
+        // Get user with password
+        const user = await User.findById(req.user.id).select('+password');
+
+        // Verify password
+        const isMatch = await user.matchPassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Incorrect password'
+            });
+        }
+
+        // Delete user
+        await User.findByIdAndDelete(req.user.id);
+
+        // Clear cookie
+        res.cookie('jwt', '', {
+            httpOnly: true,
+            expires: new Date(0),
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting account'
+        });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -305,4 +492,9 @@ module.exports = {
     forgotPassword,
     verifyResetOTP,
     resetPassword,
+    changePassword,
+    getSettings,
+    updateNotificationPreferences,
+    deactivateAccount,
+    deleteAccount,
 };

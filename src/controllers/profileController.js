@@ -129,12 +129,25 @@ exports.createOrUpdateProfile = async (req, res) => {
             console.log('✅ Backend: Profile created:', profile);
         }
 
-        // Also update the User model with whatsappNumber so scheduler can access it
+        // Also update the User model to keep data in sync
+        const userUpdates = {};
+
+        // Sync whatsappNumber so scheduler can access it
         if (whatsappNumber !== undefined) {
-            await User.findByIdAndUpdate(req.user.id, {
-                whatsappNumber: whatsappNumber
-            });
+            userUpdates.whatsappNumber = whatsappNumber;
             console.log('✅ Backend: User whatsappNumber synced:', whatsappNumber);
+        }
+
+        // Sync fullName from firstName + lastName
+        if (firstName !== undefined || lastName !== undefined) {
+            const fullName = `${firstName || profile.firstName} ${lastName || profile.lastName}`.trim();
+            userUpdates.fullName = fullName;
+            console.log('✅ Backend: User fullName synced:', fullName);
+        }
+
+        // Update User model if there are any changes
+        if (Object.keys(userUpdates).length > 0) {
+            await User.findByIdAndUpdate(req.user.id, userUpdates);
         }
 
         res.status(200).json({
