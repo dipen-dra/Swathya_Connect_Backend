@@ -213,3 +213,55 @@ exports.getVerificationStats = async (req, res) => {
         });
     }
 };
+
+// @desc    Get approved profiles
+// @route   GET /api/admin/approved-profiles
+// @access  Private/Admin
+exports.getApprovedProfiles = async (req, res) => {
+    try {
+        const approvedProfiles = await Profile.find({
+            verificationStatus: 'approved'
+        })
+            .populate('userId', 'name email role')
+            .sort({ verifiedAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: approvedProfiles.length,
+            data: approvedProfiles
+        });
+    } catch (error) {
+        console.error('Error fetching approved profiles:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get rejected profiles
+// @route   GET /api/admin/rejected-profiles
+// @access  Private/Admin
+exports.getRejectedProfiles = async (req, res) => {
+    try {
+        const rejectedProfiles = await Profile.find({
+            verificationStatus: 'rejected'
+        })
+            .populate('userId', 'name email role')
+            .sort({ updatedAt: -1 });
+
+        res.status(200).json({
+            success: true,
+            count: rejectedProfiles.length,
+            data: rejectedProfiles
+        });
+    } catch (error) {
+        console.error('Error fetching rejected profiles:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
