@@ -2,12 +2,26 @@ const Pharmacy = require('../models/Pharmacy');
 const Profile = require('../models/Profile');
 const User = require('../models/User');
 
+// Helper function to calculate distance between two coordinates using Haversine formula
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance; // Returns distance in kilometers
+}
+
 // @desc    Get all pharmacies
 // @route   GET /api/pharmacies
 // @access  Public
 exports.getPharmacies = async (req, res) => {
     try {
-        const { search, sort } = req.query;
+        const { search, sort, userLat, userLon } = req.query;
 
         // Build query - ONLY show approved pharmacies (matching doctor pattern)
         let query = {
@@ -28,27 +42,43 @@ exports.getPharmacies = async (req, res) => {
         // Filter to ensure only pharmacy role profiles
         pharmacies = pharmacies.filter(p => p.userId && p.userId.role === 'pharmacy');
 
-        // Transform pharmacies data
-        const transformedPharmacies = pharmacies.map(pharmacy => ({
-            id: pharmacy._id,
-            userId: pharmacy.userId._id,
-            name: `${pharmacy.firstName} ${pharmacy.lastName}`.trim() || pharmacy.userId.fullName,
-            address: pharmacy.address || 'Not specified',
-            city: pharmacy.city || 'Kathmandu',
-            phone: pharmacy.phoneNumber || 'Not specified',
-            rating: 4.5, // Can be enhanced with real ratings later
-            distance: '2.5 km', // Can be calculated based on user location
-            deliveryTime: '30-45 min',
-            isOpen: true,
-            specialties: ['Prescription Medicines', 'OTC Drugs', 'Health Products'],
-            panNumber: pharmacy.panNumber || '',
-            licenseNumber: pharmacy.pharmacyLicenseNumber || ''
-        }));
+        // Parse user coordinates
+        const userLatitude = parseFloat(userLat) || 27.7172; // Kathmandu default
+        const userLongitude = parseFloat(userLon) || 85.3240;
 
-        // Sort
+        // Transform pharmacies data with distance calculation
+        const transformedPharmacies = pharmacies.map(pharmacy => {
+            // Extract pharmacy coordinates from profile or use default
+            const pharmacyLat = pharmacy.latitude || 27.7172;
+            const pharmacyLon = pharmacy.longitude || 85.3240;
+
+            // Calculate actual distance
+            const distance = calculateDistance(userLatitude, userLongitude, pharmacyLat, pharmacyLon);
+
+            return {
+                id: pharmacy._id,
+                userId: pharmacy.userId._id,
+                name: `${pharmacy.firstName} ${pharmacy.lastName}`.trim() || pharmacy.userId.fullName,
+                address: pharmacy.address || 'Not specified',
+                city: pharmacy.city || 'Kathmandu',
+                phone: pharmacy.phoneNumber || 'Not specified',
+                rating: 4.5, // Can be enhanced with real ratings later
+                distance: distance.toFixed(1), // Distance in km with 1 decimal
+                distanceValue: distance, // For sorting
+                deliveryTime: distance < 5 ? '20-30 min' : distance < 10 ? '30-45 min' : '45-60 min',
+                isOpen: true,
+                specialties: ['Prescription Medicines', 'OTC Drugs', 'Health Products'],
+                panNumber: pharmacy.panNumber || '',
+                licenseNumber: pharmacy.pharmacyLicenseNumber || ''
+            };
+        });
+
+        // Sort by distance (nearest first) by default, or by rating if specified
         let sortedPharmacies = transformedPharmacies;
         if (sort === 'rating') {
             sortedPharmacies = transformedPharmacies.sort((a, b) => b.rating - a.rating);
+        } else {
+            sortedPharmacies = transformedPharmacies.sort((a, b) => a.distanceValue - b.distanceValue);
         }
 
         res.status(200).json({

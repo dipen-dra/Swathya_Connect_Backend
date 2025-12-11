@@ -36,8 +36,8 @@ function checkFileType(file, cb) {
         size: file.size
     });
 
-    // For documents, allow PDF and images
-    if (file.fieldname === 'document') {
+    // For documents and verification documents, allow PDF and images
+    if (file.fieldname === 'document' || file.fieldname === 'verificationDocument') {
         const filetypes = /jpeg|jpg|png|gif|pdf/;
         const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = filetypes.test(file.mimetype) || file.mimetype === 'application/pdf';

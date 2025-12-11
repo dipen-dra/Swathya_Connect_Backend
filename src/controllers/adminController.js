@@ -143,12 +143,24 @@ exports.rejectProfile = async (req, res) => {
             });
         }
 
+        // Increment rejection count
+        profile.rejectionCount = (profile.rejectionCount || 0) + 1;
+
         // Update verification status
         profile.verificationStatus = 'rejected';
         profile.rejectionReason = rejectionReason;
         profile.verifiedBy = req.user.id;
         profile.verifiedAt = Date.now();
         profile.submittedForReview = false; // Allow resubmission
+
+        // Auto-suspend if rejected 5 or more times
+        if (profile.rejectionCount >= 5) {
+            profile.accountSuspended = true;
+            // Suspend for 7 days
+            const suspensionDate = new Date();
+            suspensionDate.setDate(suspensionDate.getDate() + 7);
+            profile.suspensionExpiresAt = suspensionDate;
+        }
 
         await profile.save();
 

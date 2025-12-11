@@ -143,6 +143,18 @@ const profileSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    rejectionCount: {
+        type: Number,
+        default: 0
+    },
+    accountSuspended: {
+        type: Boolean,
+        default: false
+    },
+    suspensionExpiresAt: {
+        type: Date,
+        default: null
+    },
     submittedForReview: {
         type: Boolean,
         default: false

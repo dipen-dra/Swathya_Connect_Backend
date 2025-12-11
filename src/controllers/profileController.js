@@ -303,7 +303,7 @@ exports.uploadVerificationDocument = async (req, res) => {
         }
 
         // Update profile with new verification document
-        profile.verificationDocument = `/uploads/${req.file.filename}`;
+        profile.verificationDocument = `/uploads/profiles/${req.file.filename}`;
         if (documentType) {
             profile.verificationDocumentType = documentType;
         }
