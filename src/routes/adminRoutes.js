@@ -7,7 +7,8 @@ const {
     rejectProfile,
     getVerificationStats,
     getApprovedProfiles,
-    getRejectedProfiles
+    getRejectedProfiles,
+    getAllUsers
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -29,5 +30,8 @@ router.put('/reject/:id', rejectProfile);
 // Statistics
 router.get('/stats/verification', getVerificationStats);
 router.get('/stats', getVerificationStats);
+
+// User management
+router.get('/users', getAllUsers);
 
 module.exports = router;

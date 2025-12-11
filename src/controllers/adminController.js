@@ -311,3 +311,88 @@ exports.getRejectedProfiles = async (req, res) => {
         });
     }
 };
+
+
+// @desc    Get all users with pagination
+// @route   GET /api/admin/users
+// @access  Private/Admin
+exports.getAllUsers = async (req, res) => {
+    try {
+        const {
+            page = 1,
+            limit = 10,
+            role = 'all',
+            status = 'all',
+            search = ''
+        } = req.query;
+
+        // Build query
+        let query = {};
+
+        // First, get user IDs based on role filter
+        let userIds = [];
+        if (role !== 'all') {
+            const users = await User.find({ role }).select('_id');
+            userIds = users.map(u => u._id);
+            query.userId = { $in: userIds };
+        }
+
+        // Status filter
+        if (status === 'suspended') {
+            query.accountSuspended = true;
+        } else if (status === 'active') {
+            query.accountSuspended = false;
+        }
+
+        // Search filter
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            query.$or = [
+                { firstName: searchRegex },
+                { lastName: searchRegex }
+            ];
+
+            // Also search by email in User collection
+            const usersByEmail = await User.find({ email: searchRegex }).select('_id');
+            const emailUserIds = usersByEmail.map(u => u._id);
+
+            if (emailUserIds.length > 0) {
+                if (query.$or) {
+                    query.$or.push({ userId: { $in: emailUserIds } });
+                } else {
+                    query.userId = { $in: emailUserIds };
+                }
+            }
+        }
+
+        // Pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const profiles = await Profile.find(query)
+            .populate('userId', 'email role createdAt')
+            .skip(skip)
+            .limit(parseInt(limit))
+            .sort({ createdAt: -1 });
+
+        const total = await Profile.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            users: profiles,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
