@@ -11,7 +11,8 @@ exports.getPendingProfiles = async (req, res) => {
             verificationStatus: 'pending',
             submittedForReview: true
         })
-            .populate('userId', 'name email')
+            .populate('userId', 'name email role')
+            .select('+verificationDocument')
             .sort({ submittedAt: -1 });
 
         // Get documents for each profile
@@ -223,6 +224,7 @@ exports.getApprovedProfiles = async (req, res) => {
             verificationStatus: 'approved'
         })
             .populate('userId', 'name email role')
+            .select('+verificationDocument') // Explicitly include verificationDocument
             .sort({ verifiedAt: -1 });
 
         res.status(200).json({
@@ -249,6 +251,7 @@ exports.getRejectedProfiles = async (req, res) => {
             verificationStatus: 'rejected'
         })
             .populate('userId', 'name email role')
+            .select('+verificationDocument')
             .sort({ updatedAt: -1 });
 
         res.status(200).json({
