@@ -55,6 +55,26 @@ exports.getPharmacies = async (req, res) => {
             // Calculate actual distance
             const distance = calculateDistance(userLatitude, userLongitude, pharmacyLat, pharmacyLon);
 
+            // Calculate delivery time based on distance (more granular)
+            let deliveryTime;
+            if (distance < 1) {
+                deliveryTime = '5-10 min';
+            } else if (distance < 2) {
+                deliveryTime = '10-20 min';
+            } else if (distance < 3) {
+                deliveryTime = '15-25 min';
+            } else if (distance < 4) {
+                deliveryTime = '20-30 min';
+            } else if (distance < 5) {
+                deliveryTime = '25-35 min';
+            } else if (distance < 7) {
+                deliveryTime = '30-40 min';
+            } else if (distance < 10) {
+                deliveryTime = '35-50 min';
+            } else {
+                deliveryTime = '45-60 min';
+            }
+
             return {
                 id: pharmacy._id,
                 userId: pharmacy.userId._id,
@@ -65,7 +85,7 @@ exports.getPharmacies = async (req, res) => {
                 rating: 4.5, // Can be enhanced with real ratings later
                 distance: distance.toFixed(1), // Distance in km with 1 decimal
                 distanceValue: distance, // For sorting
-                deliveryTime: distance < 5 ? '20-30 min' : distance < 10 ? '30-45 min' : '45-60 min',
+                deliveryTime: deliveryTime,
                 isOpen: true,
                 specialties: ['Prescription Medicines', 'OTC Drugs', 'Health Products'],
                 panNumber: pharmacy.panNumber || '',
