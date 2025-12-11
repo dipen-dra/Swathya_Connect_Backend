@@ -82,6 +82,7 @@ exports.getPharmacies = async (req, res) => {
                 address: pharmacy.address || 'Not specified',
                 city: pharmacy.city || 'Kathmandu',
                 phone: pharmacy.phoneNumber || 'Not specified',
+                profileImage: pharmacy.profileImage || null,
                 rating: 4.5, // Can be enhanced with real ratings later
                 distance: distance.toFixed(1), // Distance in km with 1 decimal
                 distanceValue: distance, // For sorting
