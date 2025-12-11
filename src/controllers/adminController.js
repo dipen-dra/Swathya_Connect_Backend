@@ -195,6 +195,7 @@ exports.getVerificationStats = async (req, res) => {
         const approved = await Profile.countDocuments({ verificationStatus: 'approved' });
         const rejected = await Profile.countDocuments({ verificationStatus: 'rejected' });
         const total = pending + approved + rejected;
+        const totalUsers = await Profile.countDocuments(); // Total users in system
 
         res.status(200).json({
             success: true,
@@ -202,7 +203,8 @@ exports.getVerificationStats = async (req, res) => {
                 pending,
                 approved,
                 rejected,
-                total
+                total,
+                totalUsers
             }
         });
     } catch (error) {
