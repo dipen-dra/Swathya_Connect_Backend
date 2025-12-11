@@ -224,13 +224,35 @@ exports.getApprovedProfiles = async (req, res) => {
             verificationStatus: 'approved'
         })
             .populate('userId', 'name email role')
-            .select('+verificationDocument') // Explicitly include verificationDocument
+            .select('+verificationDocument')
             .sort({ verifiedAt: -1 });
+
+        // Fetch doctor documents for each profile (doctors store docs separately)
+        const profilesWithDocuments = await Promise.all(
+            approvedProfiles.map(async (profile) => {
+                const profileObj = profile.toObject();
+
+                // If it's a doctor and doesn't have verificationDocument in Profile
+                if (profile.userId?.role === 'doctor' && !profile.verificationDocument) {
+                    const documents = await DoctorDocument.find({
+                        doctorId: profile.userId._id
+                        // Removed status filter - fetch all documents
+                    }).sort({ uploadedAt: -1 });
+
+                    // Add the first document URL as verificationDocument
+                    if (documents.length > 0) {
+                        profileObj.verificationDocument = documents[0].documentUrl;
+                    }
+                }
+
+                return profileObj;
+            })
+        );
 
         res.status(200).json({
             success: true,
-            count: approvedProfiles.length,
-            data: approvedProfiles
+            count: profilesWithDocuments.length,
+            data: profilesWithDocuments
         });
     } catch (error) {
         console.error('Error fetching approved profiles:', error);
@@ -254,10 +276,31 @@ exports.getRejectedProfiles = async (req, res) => {
             .select('+verificationDocument')
             .sort({ updatedAt: -1 });
 
+        // Fetch doctor documents for each profile
+        const profilesWithDocuments = await Promise.all(
+            rejectedProfiles.map(async (profile) => {
+                const profileObj = profile.toObject();
+
+                // If it's a doctor and doesn't have verificationDocument in Profile
+                if (profile.userId?.role === 'doctor' && !profile.verificationDocument) {
+                    const documents = await DoctorDocument.find({
+                        doctorId: profile.userId._id
+                    }).sort({ uploadedAt: -1 });
+
+                    // Add the first document URL as verificationDocument
+                    if (documents.length > 0) {
+                        profileObj.verificationDocument = documents[0].documentUrl;
+                    }
+                }
+
+                return profileObj;
+            })
+        );
+
         res.status(200).json({
             success: true,
-            count: rejectedProfiles.length,
-            data: rejectedProfiles
+            count: profilesWithDocuments.length,
+            data: profilesWithDocuments
         });
     } catch (error) {
         console.error('Error fetching rejected profiles:', error);
