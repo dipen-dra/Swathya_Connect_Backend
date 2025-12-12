@@ -412,12 +412,12 @@ exports.getAnalytics = async (req, res) => {
 
         // Revenue Analytics
         const completedConsultations = await Consultation.find({ status: 'completed' });
-        const totalRevenue = completedConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+        const totalRevenue = completedConsultations.reduce((sum, c) => sum + (c.fee || 0), 0);
 
         const monthlyConsultations = completedConsultations.filter(
             c => new Date(c.createdAt) >= thisMonth
         );
-        const monthlyRevenue = monthlyConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+        const monthlyRevenue = monthlyConsultations.reduce((sum, c) => sum + (c.fee || 0), 0);
 
         const averageFee = completedConsultations.length > 0
             ? totalRevenue / completedConsultations.length
@@ -432,9 +432,9 @@ exports.getAnalytics = async (req, res) => {
         const rejectedConsultations = await Consultation.countDocuments({ status: 'rejected' });
 
         // Consultation Type Breakdown
-        const chatConsultations = await Consultation.countDocuments({ consultationType: 'chat' });
-        const audioConsultations = await Consultation.countDocuments({ consultationType: 'audio' });
-        const videoConsultations = await Consultation.countDocuments({ consultationType: 'video' });
+        const chatConsultations = await Consultation.countDocuments({ type: 'chat' });
+        const audioConsultations = await Consultation.countDocuments({ type: 'audio' });
+        const videoConsultations = await Consultation.countDocuments({ type: 'video' });
 
         // User Analytics
         const totalUsers = await Profile.countDocuments();
@@ -494,7 +494,7 @@ exports.getAnalytics = async (req, res) => {
             const monthConsultations = completedConsultations.filter(
                 c => new Date(c.createdAt) >= monthStart && new Date(c.createdAt) < monthEnd
             );
-            const monthDoctorRevenue = monthConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+            const monthDoctorRevenue = monthConsultations.reduce((sum, c) => sum + (c.fee || 0), 0);
 
             monthlyTrend.push({
                 month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
