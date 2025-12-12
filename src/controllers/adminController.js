@@ -1,6 +1,7 @@
 const Profile = require('../models/Profile');
 const User = require('../models/User');
 const DoctorDocument = require('../models/DoctorDocument');
+const Consultation = require('../models/Consultation');
 
 // @desc    Get all pending doctor profiles for review
 // @route   GET /api/admin/profiles/pending
@@ -390,6 +391,126 @@ exports.getAllUsers = async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+
+// @desc    Get analytics data
+// @route   GET /api/admin/analytics
+// @access  Private/Admin
+exports.getAnalytics = async (req, res) => {
+    try {
+        // Get current month start date
+        const thisMonth = new Date();
+        thisMonth.setDate(1);
+        thisMonth.setHours(0, 0, 0, 0);
+
+        // Revenue Analytics
+        const completedConsultations = await Consultation.find({ status: 'completed' });
+        const totalRevenue = completedConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+
+        const monthlyConsultations = completedConsultations.filter(
+            c => new Date(c.createdAt) >= thisMonth
+        );
+        const monthlyRevenue = monthlyConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+
+        const averageFee = completedConsultations.length > 0
+            ? totalRevenue / completedConsultations.length
+            : 0;
+
+        // Consultation Analytics
+        const totalConsultations = await Consultation.countDocuments();
+        const activeConsultations = await Consultation.countDocuments({
+            status: { $in: ['pending', 'approved'] }
+        });
+        const completedCount = await Consultation.countDocuments({ status: 'completed' });
+        const rejectedConsultations = await Consultation.countDocuments({ status: 'rejected' });
+
+        // Consultation Type Breakdown
+        const chatConsultations = await Consultation.countDocuments({ consultationType: 'chat' });
+        const audioConsultations = await Consultation.countDocuments({ consultationType: 'audio' });
+        const videoConsultations = await Consultation.countDocuments({ consultationType: 'video' });
+
+        // User Analytics
+        const totalUsers = await Profile.countDocuments();
+        const newUsersThisMonth = await Profile.countDocuments({
+            createdAt: { $gte: thisMonth }
+        });
+
+        // User Distribution by Role
+        const patients = await User.countDocuments({ role: 'patient' });
+        const doctors = await User.countDocuments({ role: 'doctor' });
+        const pharmacies = await User.countDocuments({ role: 'pharmacy' });
+
+        // Doctor Analytics
+        const verifiedDoctors = await Profile.countDocuments({
+            verificationStatus: 'approved'
+        }).then(async (count) => {
+            const doctorUsers = await User.find({ role: 'doctor' }).select('_id');
+            const doctorIds = doctorUsers.map(u => u._id);
+            return await Profile.countDocuments({
+                userId: { $in: doctorIds },
+                verificationStatus: 'approved'
+            });
+        });
+
+        // Pharmacy Analytics
+        const verifiedPharmacies = await Profile.countDocuments({
+            verificationStatus: 'approved'
+        }).then(async (count) => {
+            const pharmacyUsers = await User.find({ role: 'pharmacy' }).select('_id');
+            const pharmacyIds = pharmacyUsers.map(u => u._id);
+            return await Profile.countDocuments({
+                userId: { $in: pharmacyIds },
+                verificationStatus: 'approved'
+            });
+        });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                revenue: {
+                    total: totalRevenue,
+                    monthly: monthlyRevenue,
+                    average: Math.round(averageFee)
+                },
+                consultations: {
+                    total: totalConsultations,
+                    active: activeConsultations,
+                    completed: completedCount,
+                    rejected: rejectedConsultations,
+                    byType: {
+                        chat: chatConsultations,
+                        audio: audioConsultations,
+                        video: videoConsultations
+                    }
+                },
+                users: {
+                    total: totalUsers,
+                    newThisMonth: newUsersThisMonth,
+                    byRole: {
+                        patients,
+                        doctors,
+                        pharmacies
+                    }
+                },
+                doctors: {
+                    total: doctors,
+                    verified: verifiedDoctors
+                },
+                pharmacies: {
+                    total: pharmacies,
+                    verified: verifiedPharmacies
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching analytics:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',
