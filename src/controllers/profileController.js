@@ -38,6 +38,39 @@ exports.getProfile = async (req, res) => {
     }
 };
 
+// @desc    Get user profile by userId
+// @route   GET /api/profile/:userId
+// @access  Private
+exports.getUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        console.log('🔄 Backend: GET /api/profile/:userId - Requested User ID:', userId);
+
+        const profile = await Profile.findOne({ userId }).populate('userId', 'email');
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Profile not found'
+            });
+        }
+
+        console.log('✅ Backend: Profile found for user:', userId);
+
+        res.status(200).json({
+            success: true,
+            data: profile
+        });
+    } catch (error) {
+        console.error('❌ Backend: Error getting user profile:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
 // @desc    Create or update profile
 // @route   POST /api/profile
 // @access  Private

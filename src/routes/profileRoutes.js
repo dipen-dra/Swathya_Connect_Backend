@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
     getProfile,
+    getUserProfile,
     createOrUpdateProfile,
     uploadProfileImage,
     deleteProfileImage,
@@ -14,6 +15,8 @@ const upload = require('../middleware/upload');
 router.route('/')
     .get(protect, getProfile)
     .post(protect, createOrUpdateProfile);
+
+router.get('/:userId', protect, getUserProfile);
 
 router.route('/image')
     .post(protect, upload.single('profileImage'), uploadProfileImage)
