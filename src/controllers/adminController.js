@@ -471,13 +471,55 @@ exports.getAnalytics = async (req, res) => {
             });
         });
 
+        // Doctor Revenue Breakdown
+        const doctorRevenue = totalRevenue; // All current revenue is from consultations
+        const doctorMonthlyRevenue = monthlyRevenue;
+
+        // Pharmacy Revenue (Placeholder - will be implemented with pharmacy orders)
+        const pharmacyRevenue = 0; // TODO: Calculate from pharmacy orders
+        const pharmacyMonthlyRevenue = 0; // TODO: Calculate from pharmacy orders
+        const medicinesSold = 0; // TODO: Count from pharmacy orders
+
+        // Monthly Revenue Trend (last 6 months)
+        const monthlyTrend = [];
+        for (let i = 5; i >= 0; i--) {
+            const monthStart = new Date();
+            monthStart.setMonth(monthStart.getMonth() - i);
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+
+            const monthEnd = new Date(monthStart);
+            monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+            const monthConsultations = completedConsultations.filter(
+                c => new Date(c.createdAt) >= monthStart && new Date(c.createdAt) < monthEnd
+            );
+            const monthDoctorRevenue = monthConsultations.reduce((sum, c) => sum + (c.amount || 0), 0);
+
+            monthlyTrend.push({
+                month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+                doctors: monthDoctorRevenue,
+                pharmacies: 0 // TODO: Add pharmacy revenue when implemented
+            });
+        }
+
         res.status(200).json({
             success: true,
             data: {
                 revenue: {
                     total: totalRevenue,
                     monthly: monthlyRevenue,
-                    average: Math.round(averageFee)
+                    average: Math.round(averageFee),
+                    doctors: {
+                        total: doctorRevenue,
+                        monthly: doctorMonthlyRevenue
+                    },
+                    pharmacies: {
+                        total: pharmacyRevenue,
+                        monthly: pharmacyMonthlyRevenue,
+                        medicinesSold
+                    },
+                    monthlyTrend
                 },
                 consultations: {
                     total: totalConsultations,
