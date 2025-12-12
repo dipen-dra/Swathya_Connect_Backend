@@ -130,7 +130,7 @@ io.on('connection', (socket) => {
     // Send message
     socket.on('message:send', async (data) => {
         try {
-            const { chatId, content } = data;
+            const { chatId, content, type, attachment } = data;
 
             // Verify user has access to this chat
             const chat = await Chat.findById(chatId);
@@ -147,17 +147,24 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // Create message
-            const message = await Message.create({
+            // Create message with optional attachment
+            const messageData = {
                 chatId,
                 sender: socket.userId,
                 senderRole: socket.userRole,
                 content,
-                type: 'text'
-            });
+                type: type || 'text'
+            };
+
+            // Add attachment if provided
+            if (attachment) {
+                messageData.attachment = attachment;
+            }
+
+            const message = await Message.create(messageData);
 
             // Update chat
-            chat.lastMessage = content;
+            chat.lastMessage = type === 'text' ? content : `Sent ${type === 'image' ? 'an image' : 'a file'}`;
             chat.lastMessageAt = new Date();
 
             // Increment unread count for receiver
@@ -179,7 +186,7 @@ io.on('connection', (socket) => {
             const receiverId = socket.userRole === 'patient' ? chat.pharmacyId.toString() : chat.patientId.toString();
             io.to(receiverId).emit('chat:updated', {
                 chatId,
-                lastMessage: content,
+                lastMessage: chat.lastMessage,
                 lastMessageAt: chat.lastMessageAt,
                 unreadCount: socket.userRole === 'patient' ? chat.unreadCount.pharmacy : chat.unreadCount.patient
             });

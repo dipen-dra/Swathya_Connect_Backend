@@ -248,3 +248,38 @@ exports.markAsRead = async (req, res) => {
         });
     }
 };
+
+// @desc    Upload file for chat
+// @route   POST /api/chats/upload
+// @access  Private (Patient, Pharmacy)
+exports.uploadFile = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // Generate file URL
+        const fileUrl = `/uploads/chat-attachments/${req.file.filename}`;
+
+        res.status(200).json({
+            success: true,
+            message: 'File uploaded successfully',
+            file: {
+                url: fileUrl,
+                filename: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
