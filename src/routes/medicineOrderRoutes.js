@@ -8,7 +8,8 @@ const {
     verifyPrescription,
     rejectPrescription,
     updateOrderStatus,
-    cancelOrder
+    cancelOrder,
+    confirmPayment
 } = require('../controllers/medicineOrderController');
 const { protect, authorize } = require('../middleware/auth');
 const uploadPrescription = require('../config/prescriptionUpload');
@@ -17,6 +18,7 @@ const uploadPrescription = require('../config/prescriptionUpload');
 router.post('/', protect, authorize('patient'), uploadPrescription.single('prescription'), createMedicineOrder);
 router.get('/', protect, authorize('patient'), getPatientOrders);
 router.put('/:id/cancel', protect, authorize('patient'), cancelOrder);
+router.put('/:id/confirm-payment', protect, authorize('patient'), confirmPayment);
 
 // Pharmacy routes
 router.get('/pharmacy', protect, authorize('pharmacy'), getPharmacyOrders);

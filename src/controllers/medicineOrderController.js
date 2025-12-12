@@ -385,6 +385,132 @@ exports.cancelOrder = async (req, res) => {
     }
 };
 
+// @desc    Confirm payment for medicine order
+// @route   PUT /api/medicine-orders/:id/confirm-payment
+// @access  Private (Patient)
+exports.confirmPayment = async (req, res) => {
+    try {
+        const { paymentMethod, transactionId } = req.body;
+
+        const order = await MedicineOrder.findById(req.params.id)
+            .populate('patientId', 'fullName email')
+            .populate('pharmacyId', 'fullName email');
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        if (order.patientId._id.toString() !== req.user.id) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized'
+            });
+        }
+
+        if (order.status !== 'awaiting_payment') {
+            return res.status(400).json({
+                success: false,
+                message: 'Order is not awaiting payment'
+            });
+        }
+
+        // Update payment details
+        order.paymentStatus = 'paid';
+        order.paymentMethod = paymentMethod;
+        order.paymentTransactionId = transactionId;
+        order.paidAt = new Date();
+        order.paidAmount = order.totalAmount;
+        order.updateStatus('paid', req.user.id, `Payment received via ${paymentMethod}`);
+
+        // Reduce inventory stock and release reserved stock
+        for (const med of order.medicines) {
+            if (med.inventoryId) {
+                const inventoryItem = await Inventory.findById(med.inventoryId);
+                if (inventoryItem) {
+                    // Reduce actual stock
+                    inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
+                    // Release reserved stock
+                    inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
+                    await inventoryItem.save();
+                }
+            }
+        }
+
+        await order.save();
+
+        console.log('💰 Payment confirmed for order:', order._id);
+
+        // Send email notifications
+        try {
+            const sendEmail = require('../utils/sendEmail');
+
+            // Email to patient
+            await sendEmail({
+                email: order.patientId.email,
+                subject: 'Payment Successful - Medicine Order Confirmed',
+                message: `
+                    <h2>Payment Successful!</h2>
+                    <p>Dear ${order.patientId.fullName},</p>
+                    <p>Your payment of <strong>NPR ${order.totalAmount}</strong> has been successfully processed.</p>
+                    <p><strong>Order Details:</strong></p>
+                    <ul>
+                        <li>Order ID: ${order._id}</li>
+                        <li>Pharmacy: ${order.pharmacyId.fullName}</li>
+                        <li>Payment Method: ${paymentMethod}</li>
+                        <li>Transaction ID: ${transactionId}</li>
+                    </ul>
+                    <p>Your medicines are being prepared and will be delivered to:</p>
+                    <p><strong>${order.deliveryAddress}</strong></p>
+                    <p>Thank you for using Swasthya Connect!</p>
+                `
+            });
+
+            // Email to pharmacy
+            await sendEmail({
+                email: order.pharmacyId.email,
+                subject: 'New Paid Order - Start Preparation',
+                message: `
+                    <h2>Payment Received!</h2>
+                    <p>Dear ${order.pharmacyId.fullName},</p>
+                    <p>A payment of <strong>NPR ${order.totalAmount}</strong> has been received for order <strong>${order._id}</strong>.</p>
+                    <p><strong>Patient Details:</strong></p>
+                    <ul>
+                        <li>Name: ${order.patientId.fullName}</li>
+                        <li>Delivery Address: ${order.deliveryAddress}</li>
+                    </ul>
+                    <p><strong>Medicines:</strong></p>
+                    <ul>
+                        ${order.medicines.map(med => `<li>${med.name} ${med.dosage} - Qty: ${med.quantity}</li>`).join('')}
+                    </ul>
+                    <p>Please start preparing the order for delivery.</p>
+                    <p>Login to your dashboard to update the order status.</p>
+                `
+            });
+
+            console.log('📧 Email notifications sent');
+        } catch (emailError) {
+            console.error('❌ Error sending emails:', emailError);
+            // Don't fail the request if email fails
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Payment confirmed successfully',
+            order
+        });
+    } catch (error) {
+        console.error('❌ Error confirming payment:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     createMedicineOrder,
     getPatientOrders,
@@ -393,5 +519,6 @@ module.exports = {
     verifyPrescription,
     rejectPrescription,
     updateOrderStatus,
-    cancelOrder
+    cancelOrder,
+    confirmPayment
 };
