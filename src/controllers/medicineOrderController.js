@@ -93,7 +93,7 @@ exports.getPharmacyOrders = async (req, res) => {
         }
 
         const orders = await MedicineOrder.find(query)
-            .populate('patientId', 'fullName email phoneNumber')
+            .populate('patientId', 'fullName email phone')
             .sort({ createdAt: -1 });
 
         console.log(`✅ Found ${orders.length} orders for pharmacy ${req.user.id}`);
