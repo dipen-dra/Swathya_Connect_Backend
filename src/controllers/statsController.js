@@ -69,13 +69,24 @@ exports.getDashboardStats = async (req, res) => {
             ? Math.round(((thisMonthCompleted - lastMonthCompleted) / lastMonthCompleted) * 100)
             : thisMonthCompleted > 0 ? 100 : 0;
 
-        // 4. Total Spent (sum of all consultation fees)
+        // 4. Total Spent (sum of all consultation fees + medicine orders)
         const consultationsWithFees = await Consultation.find({
             patientId: req.user.id,
             fee: { $exists: true, $ne: null }
         });
 
-        const totalSpent = consultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+        const consultationSpent = consultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+
+        // Get medicine orders
+        const MedicineOrder = require('../models/MedicineOrder');
+        const paidMedicineOrders = await MedicineOrder.find({
+            patientId: req.user.id,
+            paymentStatus: 'paid'
+        });
+
+        const medicineOrderSpent = paidMedicineOrders.reduce((sum, order) => sum + (order.paidAmount || order.totalAmount || 0), 0);
+
+        const totalSpent = consultationSpent + medicineOrderSpent;
 
         const thisMonthConsultationsWithFees = await Consultation.find({
             patientId: req.user.id,
@@ -89,8 +100,23 @@ exports.getDashboardStats = async (req, res) => {
             createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
         });
 
-        const thisMonthSpent = thisMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
-        const lastMonthSpent = lastMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0);
+        const thisMonthMedicineOrders = await MedicineOrder.find({
+            patientId: req.user.id,
+            paymentStatus: 'paid',
+            paidAt: { $gte: firstDayOfMonth }
+        });
+
+        const lastMonthMedicineOrders = await MedicineOrder.find({
+            patientId: req.user.id,
+            paymentStatus: 'paid',
+            paidAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
+        });
+
+        const thisMonthSpent = thisMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0) +
+            thisMonthMedicineOrders.reduce((sum, order) => sum + (order.paidAmount || order.totalAmount || 0), 0);
+
+        const lastMonthSpent = lastMonthConsultationsWithFees.reduce((sum, c) => sum + (c.fee || 0), 0) +
+            lastMonthMedicineOrders.reduce((sum, order) => sum + (order.paidAmount || order.totalAmount || 0), 0);
 
         const spentChange = lastMonthSpent > 0
             ? Math.round(((thisMonthSpent - lastMonthSpent) / lastMonthSpent) * 100)
