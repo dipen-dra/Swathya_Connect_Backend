@@ -30,16 +30,16 @@ exports.getDashboardStats = async (req, res) => {
             ? Math.round(((thisMonthConsultations - lastMonthConsultations) / lastMonthConsultations) * 100)
             : thisMonthConsultations > 0 ? 100 : 0;
 
-        // 2. Upcoming Appointments (status: upcoming or scheduled)
+        // 2. Upcoming Appointments (status: upcoming, scheduled, pending, or approved)
         const upcomingAppointments = await Consultation.countDocuments({
             patientId: req.user.id,
-            status: { $in: ['upcoming', 'scheduled', 'pending'] },
+            status: { $in: ['upcoming', 'scheduled', 'pending', 'approved'] },
             date: { $gte: currentDate }
         });
 
         const lastMonthUpcoming = await Consultation.countDocuments({
             patientId: req.user.id,
-            status: { $in: ['upcoming', 'scheduled', 'pending'] },
+            status: { $in: ['upcoming', 'scheduled', 'pending', 'approved'] },
             createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
         });
 
