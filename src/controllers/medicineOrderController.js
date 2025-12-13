@@ -426,17 +426,22 @@ exports.confirmPayment = async (req, res) => {
         order.updateStatus('paid', req.user.id, `Payment received via ${paymentMethod}`);
 
         // Reduce inventory stock and release reserved stock
-        for (const med of order.medicines) {
-            if (med.inventoryId) {
-                const inventoryItem = await Inventory.findById(med.inventoryId);
-                if (inventoryItem) {
-                    // Reduce actual stock
-                    inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
-                    // Release reserved stock
-                    inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
-                    await inventoryItem.save();
+        try {
+            for (const med of order.medicines) {
+                if (med.inventoryId) {
+                    const inventoryItem = await Inventory.findById(med.inventoryId);
+                    if (inventoryItem) {
+                        // Reduce actual stock
+                        inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
+                        // Release reserved stock
+                        inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
+                        await inventoryItem.save();
+                    }
                 }
             }
+        } catch (inventoryError) {
+            console.error('⚠️ Error updating inventory (non-critical):', inventoryError);
+            // Continue with payment confirmation even if inventory update fails
         }
 
         await order.save();
