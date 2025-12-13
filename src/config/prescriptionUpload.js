@@ -28,13 +28,14 @@ const prescriptionFilter = (req, file, cb) => {
         'image/jpg',
         'image/png',
         'image/gif',
-        'image/webp'
+        'image/webp',
+        'application/pdf'
     ];
 
     if (allowedMimes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Only image files are allowed for prescriptions.'), false);
+        cb(new Error('Invalid file type. Only image files (PNG, JPG, WEBP) and PDF files are allowed for prescriptions.'), false);
     }
 };
 
