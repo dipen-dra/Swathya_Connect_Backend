@@ -511,14 +511,3 @@ exports.confirmPayment = async (req, res) => {
     }
 };
 
-module.exports = {
-    createMedicineOrder,
-    getPatientOrders,
-    getPharmacyOrders,
-    getOrderById,
-    verifyPrescription,
-    rejectPrescription,
-    updateOrderStatus,
-    cancelOrder,
-    confirmPayment
-};
