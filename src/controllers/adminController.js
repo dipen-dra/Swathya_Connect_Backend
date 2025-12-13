@@ -2,6 +2,7 @@ const Profile = require('../models/Profile');
 const User = require('../models/User');
 const DoctorDocument = require('../models/DoctorDocument');
 const Consultation = require('../models/Consultation');
+const MedicineOrder = require('../models/MedicineOrder');
 
 // @desc    Get all pending doctor profiles for review
 // @route   GET /api/admin/profiles/pending
@@ -475,10 +476,20 @@ exports.getAnalytics = async (req, res) => {
         const doctorRevenue = totalRevenue; // All current revenue is from consultations
         const doctorMonthlyRevenue = monthlyRevenue;
 
-        // Pharmacy Revenue (Placeholder - will be implemented with pharmacy orders)
-        const pharmacyRevenue = 0; // TODO: Calculate from pharmacy orders
-        const pharmacyMonthlyRevenue = 0; // TODO: Calculate from pharmacy orders
-        const medicinesSold = 0; // TODO: Count from pharmacy orders
+        // Pharmacy Revenue - Calculate from paid medicine orders
+        const paidMedicineOrders = await MedicineOrder.find({ paymentStatus: 'paid' });
+        const pharmacyRevenue = paidMedicineOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+
+        const monthlyMedicineOrders = paidMedicineOrders.filter(
+            order => new Date(order.paidAt || order.createdAt) >= thisMonth
+        );
+        const pharmacyMonthlyRevenue = monthlyMedicineOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+
+        // Count total medicines sold (sum of quantities from all paid orders)
+        const medicinesSold = paidMedicineOrders.reduce((sum, order) => {
+            const orderMedicineCount = order.medicines.reduce((medSum, med) => medSum + (med.quantity || 0), 0);
+            return sum + orderMedicineCount;
+        }, 0);
 
         // Monthly Revenue Trend (last 6 months)
         const monthlyTrend = [];
@@ -496,10 +507,16 @@ exports.getAnalytics = async (req, res) => {
             );
             const monthDoctorRevenue = monthConsultations.reduce((sum, c) => sum + (c.fee || 0), 0);
 
+            // Calculate pharmacy revenue for this month
+            const monthPharmacyOrders = paidMedicineOrders.filter(
+                order => new Date(order.paidAt || order.createdAt) >= monthStart && new Date(order.paidAt || order.createdAt) < monthEnd
+            );
+            const monthPharmacyRevenue = monthPharmacyOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+
             monthlyTrend.push({
                 month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
                 doctors: monthDoctorRevenue,
-                pharmacies: 0 // TODO: Add pharmacy revenue when implemented
+                pharmacies: monthPharmacyRevenue
             });
         }
 
@@ -507,8 +524,8 @@ exports.getAnalytics = async (req, res) => {
             success: true,
             data: {
                 revenue: {
-                    total: totalRevenue,
-                    monthly: monthlyRevenue,
+                    total: totalRevenue + pharmacyRevenue,
+                    monthly: monthlyRevenue + pharmacyMonthlyRevenue,
                     average: Math.round(averageFee),
                     doctors: {
                         total: doctorRevenue,
