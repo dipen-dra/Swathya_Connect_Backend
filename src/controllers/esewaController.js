@@ -173,7 +173,125 @@ exports.verifyEsewaPayment = async (req, res) => {
     }
 };
 
+
+// Medicine Order Payment Functions
+const MedicineOrder = require('../models/MedicineOrder');
+const { generateOrderId, storePendingOrder, getPendingOrder, deletePendingOrder } = require('../utils/pendingOrders');
+
+// @desc    Initiate eSewa payment for medicine order
+// @route   POST /api/payment/esewa/initiate-medicine
+// @access  Private
+exports.initiateEsewaMedicine = async (req, res) => {
+    try {
+        const { orderData } = req.body;
+        if (!orderData) {
+            return res.status(400).json({ success: false, message: 'Order data is required' });
+        }
+
+        // Extract the actual order from the nested structure
+        const actualOrder = orderData.orderDetails || orderData;
+        const orderId = generateOrderId();
+
+        // Store the actual order ID for later update
+        storePendingOrder(orderId, {
+            orderId: actualOrder._id || orderData.orderId,
+            patientId: req.user.id
+        });
+
+        const amount = (actualOrder.totalAmount || orderData.amount).toString();
+        const tax_amount = '0';
+        const total_amount = amount;
+        const transaction_uuid = orderId;
+        const product_code = ESEWA_SCD;
+        const product_service_charge = '0';
+        const product_delivery_charge = '0';
+        const success_url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/esewa-medicine-success`;
+        const failure_url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/esewa-medicine-failure`;
+        const signed_field_names = 'total_amount,transaction_uuid,product_code';
+        const message = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
+        const signature = crypto.createHmac('sha256', ESEWA_SECRET).update(message).digest('base64');
+
+        res.status(200).json({
+            success: true,
+            data: {
+                ESEWA_URL,
+                amount,
+                tax_amount,
+                total_amount,
+                transaction_uuid,
+                product_code,
+                product_service_charge,
+                product_delivery_charge,
+                success_url,
+                failure_url,
+                signed_field_names,
+                signature
+            }
+        });
+    } catch (error) {
+        console.error('Error initiating eSewa medicine payment:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
+// @desc    Verify eSewa payment for medicine order
+// @route   GET /api/payment/esewa/verify-medicine
+// @access  Public
+exports.verifyEsewaMedicine = async (req, res) => {
+    try {
+        const { data } = req.query;
+        if (!data) {
+            return res.status(400).json({ success: false, message: 'Payment data is required' });
+        }
+        const decodedData = JSON.parse(Buffer.from(data, 'base64').toString('utf-8'));
+        const { transaction_uuid, total_amount, status } = decodedData;
+        if (status !== 'COMPLETE') {
+            return res.status(400).json({ success: false, message: 'Payment not completed' });
+        }
+        // Retrieve order data from pending storage
+        const orderData = getPendingOrder(transaction_uuid);
+
+        if (!orderData) {
+            return res.status(404).json({ success: false, message: 'Order data not found or expired' });
+        }
+
+        // Find and update the existing medicine order
+        const order = await MedicineOrder.findByIdAndUpdate(
+            orderData.orderId,
+            {
+                paymentStatus: 'paid',
+                paymentMethod: 'esewa',
+                paymentTransactionId: transaction_uuid,
+                paidAt: new Date(),
+                paidAmount: total_amount,
+                status: 'paid'
+            },
+            { new: true }
+        );
+
+        if (!order) {
+            deletePendingOrder(transaction_uuid);
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        // Delete from pending storage
+        deletePendingOrder(transaction_uuid);
+
+        console.log('✅ Medicine order payment updated via eSewa:', order._id);
+        res.status(200).json({
+            success: true,
+            message: 'Payment verified successfully! Your order has been placed.',
+            data: order
+        });
+    } catch (error) {
+        console.error('Error verifying eSewa medicine payment:', error);
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
+
 module.exports = {
     initiateEsewaPayment: exports.initiateEsewaPayment,
-    verifyEsewaPayment: exports.verifyEsewaPayment
+    verifyEsewaPayment: exports.verifyEsewaPayment,
+    initiateEsewaMedicine: exports.initiateEsewaMedicine,
+    verifyEsewaMedicine: exports.verifyEsewaMedicine
 };

@@ -107,6 +107,81 @@ exports.verifyKhaltiPayment = async (req, res) => {
     }
 };
 
+// Medicine Order Payment Function
+const MedicineOrder = require('../models/MedicineOrder');
+
+// @desc    Verify Khalti payment for medicine order
+// @route   POST /api/payment/khalti/verify-medicine
+// @access  Private
+exports.verifyKhaltiMedicine = async (req, res) => {
+    try {
+        const { token, amount, orderData } = req.body;
+
+        if (!token || !amount || !orderData) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: token, amount, or orderData'
+            });
+        }
+
+        // Verify payment with Khalti
+        const verificationUrl = 'https://khalti.com/api/v2/payment/verify/';
+
+        const response = await fetch(verificationUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Key ${KHALTI_SECRET_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token, amount })
+        });
+
+        const verificationData = await response.json();
+
+        if (verificationData.idx) {
+            // Payment verified successfully - update existing order
+            const order = await MedicineOrder.findByIdAndUpdate(
+                orderData.orderId,
+                {
+                    paymentStatus: 'paid',
+                    paymentMethod: 'khalti',
+                    paymentTransactionId: token,
+                    paidAt: new Date(),
+                    paidAmount: amount,
+                    status: 'paid'
+                },
+                { new: true }
+            );
+
+            if (!order) {
+                return res.status(404).json({ success: false, message: 'Order not found' });
+            }
+
+            console.log('✅ Medicine order payment updated via Khalti:', order._id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Payment verified successfully! Your order has been placed.',
+                data: order
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: 'Payment verification failed',
+                error: verificationData
+            });
+        }
+    } catch (error) {
+        console.error('Error in verifyKhaltiMedicine:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during payment verification',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
-    verifyKhaltiPayment: exports.verifyKhaltiPayment
+    verifyKhaltiPayment: exports.verifyKhaltiPayment,
+    verifyKhaltiMedicine: exports.verifyKhaltiMedicine
 };
