@@ -6,7 +6,7 @@ const { protect } = require('../middleware/auth');
 
 // eSewa routes
 router.post('/esewa/initiate', protect, initiateEsewaPayment);
-router.post('/esewa/verify', protect, verifyEsewaPayment);
+router.get('/esewa/verify', verifyEsewaPayment); // GET request from eSewa redirect, no auth needed
 
 // Khalti routes
 router.post('/khalti/verify', protect, verifyKhaltiPayment);
