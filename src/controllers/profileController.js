@@ -392,11 +392,21 @@ exports.submitForReview = async (req, res) => {
         }
 
         // Check if verification document is uploaded (required for both doctors and pharmacies)
+        // Check both Profile and User models (registration might have saved it to User model)
         if (!profile.verificationDocument || profile.verificationDocument === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'Please upload a verification document before submitting'
-            });
+            // Check if it exists in User model
+            const user = await User.findById(req.user.id);
+            if (user && user.verificationDocument) {
+                // Copy from User to Profile
+                profile.verificationDocument = user.verificationDocument;
+                await profile.save();
+                console.log('✅ Copied verification document from User to Profile');
+            } else {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Please upload a verification document before submitting'
+                });
+            }
         }
 
         // Check if already submitted or approved
