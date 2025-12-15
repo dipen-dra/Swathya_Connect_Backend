@@ -219,6 +219,20 @@ exports.cancelConsultation = async (req, res) => {
             });
         }
 
+        // If consultation is unpaid, delete it completely
+        // If it's paid, mark as cancelled (for refund processing)
+        if (consultation.paymentStatus !== 'paid') {
+            console.log(`🗑️ Deleting unpaid consultation: ${req.params.id}`);
+            await Consultation.findByIdAndDelete(req.params.id);
+            console.log(`✅ Unpaid consultation deleted: ${req.params.id}`);
+            return res.status(200).json({
+                success: true,
+                message: 'Unpaid consultation deleted successfully'
+            });
+        }
+
+        // For paid consultations, mark as cancelled
+        console.log(`❌ Marking paid consultation as cancelled: ${req.params.id}`);
         consultation.status = 'cancelled';
         await consultation.save();
 

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const Consultation = require('../models/Consultation');
 const User = require('../models/User');
 const { sendConsultationConfirmation } = require('../utils/emailService');
+const { generateBookingId, storePendingBooking, getPendingBooking, deletePendingBooking } = require('../utils/pendingBookings');
 
 const ESEWA_URL = 'https://rc-epay.esewa.com.np/api/epay/main/v2/form';
 const ESEWA_SCD = 'EPAYTEST';
@@ -12,20 +13,30 @@ const ESEWA_SECRET = '8gBm/:&EnhH.1/q';
 // @access  Private
 exports.initiateEsewaPayment = async (req, res) => {
     try {
-        const { consultationId } = req.body;
-        const consultation = await Consultation.findById(consultationId);
+        const { bookingData } = req.body;
 
-        if (!consultation) {
-            return res.status(404).json({ success: false, message: 'Consultation not found' });
+        if (!bookingData) {
+            return res.status(400).json({ success: false, message: 'Booking data is required' });
         }
 
-        if (consultation.patientId.toString() !== req.user.id) {
-            return res.status(401).json({ success: false, message: 'Not authorized' });
+        // Validate booking data
+        const { doctorId, date, time, type, reason, fee } = bookingData;
+        if (!doctorId || !date || !time || !type || !fee) {
+            return res.status(400).json({ success: false, message: 'Missing required booking information' });
         }
 
-        const amountToPay = consultation.fee.toString();
+        // Generate unique booking ID
+        const bookingId = generateBookingId();
+
+        // Store booking data temporarily
+        storePendingBooking(bookingId, {
+            ...bookingData,
+            patientId: req.user.id
+        });
+
+        const amountToPay = fee.toString();
         const signedFieldNames = 'total_amount,transaction_uuid,product_code';
-        const signatureBaseString = `total_amount=${amountToPay},transaction_uuid=${consultationId},product_code=${ESEWA_SCD}`;
+        const signatureBaseString = `total_amount=${amountToPay},transaction_uuid=${bookingId},product_code=${ESEWA_SCD}`;
 
         const hmac = crypto.createHmac('sha256', ESEWA_SECRET);
         hmac.update(signatureBaseString);
@@ -42,7 +53,7 @@ exports.initiateEsewaPayment = async (req, res) => {
             signed_field_names: signedFieldNames,
             tax_amount: '0',
             total_amount: amountToPay,
-            transaction_uuid: consultationId,
+            transaction_uuid: bookingId,
         };
 
         res.json({ success: true, data: { ...esewaData, ESEWA_URL } });
@@ -79,45 +90,76 @@ exports.verifyEsewaPayment = async (req, res) => {
         const verificationResponse = await response.json();
 
         if (verificationResponse.status === 'COMPLETE') {
-            const consultation = await Consultation.findById(decodedData.transaction_uuid);
+            const bookingId = decodedData.transaction_uuid;
 
-            if (!consultation) {
-                return res.status(404).json({ success: false, message: 'Consultation not found after payment.' });
+            // Retrieve pending booking data
+            const bookingData = getPendingBooking(bookingId);
+
+            if (!bookingData) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Booking data not found or expired. Please try booking again.'
+                });
             }
 
-            // Check if already paid to prevent duplicate emails
-            const wasAlreadyPaid = consultation.paymentStatus === 'paid';
+            // Get doctor information
+            const doctorUser = await User.findById(bookingData.doctorId);
+            if (!doctorUser) {
+                deletePendingBooking(bookingId);
+                return res.status(404).json({
+                    success: false,
+                    message: 'Doctor not found'
+                });
+            }
 
-            // Update consultation payment status
-            consultation.paymentStatus = 'paid';
-            consultation.paymentMethod = 'eSewa';
-            await consultation.save();
+            // Get doctor profile for additional details
+            const Profile = require('../models/Profile');
+            const doctorProfile = await Profile.findOne({ userId: bookingData.doctorId });
 
-            // Send confirmation email only if this is a new payment
-            if (!wasAlreadyPaid) {
-                try {
-                    const user = await User.findById(consultation.patientId);
-                    if (user && user.email) {
-                        await sendConsultationConfirmation(user.email, user.name, {
-                            doctorName: consultation.doctorName,
-                            specialty: consultation.specialty,
-                            date: consultation.date,
-                            time: consultation.time,
-                            type: consultation.type,
-                            fee: consultation.fee,
-                            paymentMethod: 'eSewa',
-                            consultationId: consultation._id
-                        });
-                    }
-                } catch (emailError) {
-                    console.error('Failed to send confirmation email:', emailError);
-                    // Don't fail the request if email fails
+            // Create consultation with paid status
+            const consultation = await Consultation.create({
+                patientId: bookingData.patientId,
+                doctorId: bookingData.doctorId,
+                doctorName: doctorUser.fullName || doctorUser.name ||
+                    (doctorProfile ? `${doctorProfile.firstName} ${doctorProfile.lastName}`.trim() : doctorUser.email),
+                specialty: doctorProfile?.specialty || 'General Physician',
+                doctorImage: doctorProfile?.profileImage || '',
+                date: bookingData.date,
+                time: bookingData.time,
+                type: bookingData.type,
+                fee: bookingData.fee,
+                reason: bookingData.reason || '',
+                status: 'upcoming',
+                paymentStatus: 'paid',
+                paymentMethod: 'eSewa'
+            });
+
+            // Delete pending booking data
+            deletePendingBooking(bookingId);
+
+            // Send confirmation email
+            try {
+                const user = await User.findById(bookingData.patientId);
+                if (user && user.email) {
+                    await sendConsultationConfirmation(user.email, user.name, {
+                        doctorName: consultation.doctorName,
+                        specialty: consultation.specialty,
+                        date: consultation.date,
+                        time: consultation.time,
+                        type: consultation.type,
+                        fee: consultation.fee,
+                        paymentMethod: 'eSewa',
+                        consultationId: consultation._id
+                    });
                 }
+            } catch (emailError) {
+                console.error('Failed to send confirmation email:', emailError);
+                // Don't fail the request if email fails
             }
 
             res.status(200).json({
                 success: true,
-                message: 'Payment successful!',
+                message: 'Payment successful! Your consultation has been booked.',
                 data: consultation
             });
         } else {

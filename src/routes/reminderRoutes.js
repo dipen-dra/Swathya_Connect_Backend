@@ -14,12 +14,11 @@ router.route('/')
     .get(protect, getReminders)
     .post(protect, createReminder);
 
+router.put('/:id/toggle', protect, toggleReminderStatus);
+
 router.route('/:id')
     .get(protect, getReminder)
     .put(protect, updateReminder)
     .delete(protect, deleteReminder);
-
-router.route('/:id/toggle')
-    .patch(protect, toggleReminderStatus);
 
 module.exports = router;

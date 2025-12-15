@@ -1,0 +1,62 @@
+const mongoose = require('mongoose');
+
+const consultationChatSchema = new mongoose.Schema({
+    consultationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Consultation',
+        required: true,
+        unique: true
+    },
+    patientId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    doctorId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['waiting', 'active', 'ended'],
+        default: 'waiting'
+    },
+    startedAt: {
+        type: Date,
+        default: null
+    },
+    endedAt: {
+        type: Date,
+        default: null
+    },
+    startedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    lastMessageAt: {
+        type: Date,
+        default: null
+    },
+    unreadCount: {
+        patient: {
+            type: Number,
+            default: 0
+        },
+        doctor: {
+            type: Number,
+            default: 0
+        }
+    }
+}, {
+    timestamps: true
+});
+
+// Indexes for performance
+consultationChatSchema.index({ consultationId: 1 });
+consultationChatSchema.index({ patientId: 1, status: 1 });
+consultationChatSchema.index({ doctorId: 1, status: 1 });
+consultationChatSchema.index({ status: 1, startedAt: -1 });
+
+module.exports = mongoose.model('ConsultationChat', consultationChatSchema);

@@ -16,6 +16,8 @@ router.route('/')
     .get(protect, getConsultations)
     .post(protect, bookConsultation);
 
+router.put('/:id/cancel', protect, cancelConsultation);
+
 router.route('/:id')
     .get(protect, getConsultation)
     .put(protect, updateConsultation)
