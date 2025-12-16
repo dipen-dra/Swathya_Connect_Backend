@@ -55,12 +55,19 @@ const loginUser = async (req, res) => {
     try {
         const { email, password, role: selectedRole } = req.body;
 
-        // Get client IP address
-        const ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        // Get client IP address and normalize it
+        let ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        // Normalize IPv6 localhost to IPv4
+        if (ip === '::1' || ip === '::ffff:127.0.0.1') {
+            ip = '127.0.0.1';
+        }
+
+        console.log(`🔐 Login attempt from IP: ${ip} for email: ${email}`);
 
         // Check if IP is blocked due to too many failed attempts
         const blockStatus = isBlocked(ip);
         if (blockStatus && blockStatus.blocked) {
+            console.log(`🚫 IP ${ip} is blocked for ${blockStatus.remainingTime} more minutes`);
             return res.status(429).json({
                 success: false,
                 message: `Too many failed login attempts. Please try again in ${blockStatus.remainingTime} minute${blockStatus.remainingTime > 1 ? 's' : ''}.`,

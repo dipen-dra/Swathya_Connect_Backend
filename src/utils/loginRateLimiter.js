@@ -23,6 +23,7 @@ exports.isBlocked = (ip) => {
     const attempt = loginAttempts.get(ip);
     if (!attempt) return false;
 
+    // Check if there's a block time set and if it's still active
     if (attempt.blockedUntil && new Date() < attempt.blockedUntil) {
         const remainingMs = attempt.blockedUntil - new Date();
         return {
@@ -31,8 +32,13 @@ exports.isBlocked = (ip) => {
         };
     }
 
-    // Block expired, reset
-    loginAttempts.delete(ip);
+    // If block time exists but has expired, clear the block status but keep the count
+    if (attempt.blockedUntil && new Date() >= attempt.blockedUntil) {
+        delete attempt.blockedUntil; // Remove the blockedUntil property
+        loginAttempts.set(ip, attempt); // Update the map with the modified attempt object
+    }
+
+    // Not blocked (either no block time set, or block expired and was cleared)
     return false;
 };
 
