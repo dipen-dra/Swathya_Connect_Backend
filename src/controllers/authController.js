@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
+const { isBlocked, recordFailedAttempt, resetAttempts, MAX_ATTEMPTS } = require('../utils/loginRateLimiter');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -54,6 +55,20 @@ const loginUser = async (req, res) => {
     try {
         const { email, password, role: selectedRole } = req.body;
 
+        // Get client IP address
+        const ip = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+
+        // Check if IP is blocked due to too many failed attempts
+        const blockStatus = isBlocked(ip);
+        if (blockStatus && blockStatus.blocked) {
+            return res.status(429).json({
+                success: false,
+                message: `Too many failed login attempts. Please try again in ${blockStatus.remainingTime} minute${blockStatus.remainingTime > 1 ? 's' : ''}.`,
+                remainingTime: blockStatus.remainingTime,
+                blocked: true
+            });
+        }
+
         // Hardcoded Admin Check
         if (email === 'admin@gmail.com' && password === 'admin123') {
             // Create a dummy admin user object for token generation if not in DB, 
@@ -107,6 +122,9 @@ const loginUser = async (req, res) => {
                 });
             }
 
+            // Successful login - reset failed attempts for this IP
+            resetAttempts(ip);
+
             const token = generateToken(res, user._id);
             res.json({
                 success: true,
@@ -120,7 +138,26 @@ const loginUser = async (req, res) => {
                 },
             });
         } else {
-            res.status(401).json({ success: false, message: 'Invalid email or password' });
+            // Failed login - record attempt
+            const attemptCount = recordFailedAttempt(ip);
+            const remainingAttempts = MAX_ATTEMPTS - attemptCount;
+
+            console.log(`❌ Failed login attempt from IP ${ip}. Attempts: ${attemptCount}/${MAX_ATTEMPTS}`);
+
+            if (remainingAttempts > 0) {
+                return res.status(401).json({
+                    success: false,
+                    message: `Invalid email or password. ${remainingAttempts} attempt${remainingAttempts > 1 ? 's' : ''} remaining before temporary lock.`,
+                    remainingAttempts
+                });
+            } else {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Too many failed login attempts. Your account has been temporarily locked for 15 minutes.',
+                    remainingAttempts: 0,
+                    locked: true
+                });
+            }
         }
     } catch (error) {
         console.error(error);
