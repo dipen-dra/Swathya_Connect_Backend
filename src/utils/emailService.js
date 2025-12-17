@@ -443,4 +443,76 @@ exports.sendPasswordResetOTP = async (userEmail, userName, otp) => {
     }
 };
 
+// Send consultation started email
+exports.sendConsultationStartedEmail = async (userEmail, userName, consultationDetails) => {
+    const { doctorName, consultationType, scheduledTime, consultationId } = consultationDetails;
+
+    const mailOptions = {
+        from: `"Swasthya Connect" <${process.env.EMAIL_USER}>`,
+        to: userEmail,
+        subject: '🩺 Your Consultation Has Started - Swasthya Connect',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+                    .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                    .detail-row { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+                    .detail-row:last-child { border-bottom: none; }
+                    .label { font-weight: bold; color: #667eea; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🩺 Consultation Started!</h1>
+                    </div>
+                    <div class="content">
+                        <p>Hello <strong>${userName}</strong>,</p>
+                        <p>Your consultation with <strong>Dr. ${doctorName}</strong> has just started!</p>
+                        
+                        <div class="details">
+                            <div class="detail-row">
+                                <span class="label">Doctor:</span> Dr. ${doctorName}
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Type:</span> ${consultationType}
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Scheduled Time:</span> ${new Date(scheduledTime).toLocaleString()}
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Duration:</span> 30 minutes
+                            </div>
+                        </div>
+                        
+                        <p><strong>Important:</strong> The consultation will automatically end after 30 minutes. You'll receive a warning at the 10-minute mark.</p>
+                        
+                        <p>Please join the consultation chat to communicate with your doctor.</p>
+                        
+                        <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
+                            Best regards,<br>
+                            <strong>Swasthya Connect Team</strong>
+                        </p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Failed to send consultation started email:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 module.exports = exports;

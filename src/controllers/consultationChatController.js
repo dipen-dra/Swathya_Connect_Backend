@@ -251,19 +251,49 @@ exports.getConsultationChat = async (req, res) => {
             });
         }
 
-        // Get consultation chat
-        const consultationChat = await ConsultationChat.findOne({ consultationId });
+        // Get or create consultation chat
+        let consultationChat = await ConsultationChat.findOne({ consultationId });
 
         if (!consultationChat) {
-            return res.status(404).json({
-                success: false,
-                message: 'Consultation chat not found'
+            // Create consultation chat if it doesn't exist
+            consultationChat = await ConsultationChat.create({
+                consultationId,
+                patientId: consultation.patientId,
+                doctorId: consultation.doctorId,
+                status: 'active',
+                startedAt: new Date()
             });
+
+            console.log(`✅ Created consultation chat for consultation ${consultationId}`);
+
+            // Send email notification to patient
+            try {
+                await sendConsultationStartedEmail(
+                    patientUser.email,
+                    patientUser.fullName,
+                    {
+                        doctorName: doctorUser.fullName,
+                        consultationType: consultation.type,
+                        scheduledTime: consultation.time,
+                        consultationId
+                    }
+                );
+                console.log(`📧 Sent consultation started email to ${patientUser.email}`);
+            } catch (emailError) {
+                console.error('Error sending email:', emailError);
+                // Don't fail the request if email fails
+            }
         }
 
         // Get patient and doctor profiles
         const patientProfile = await Profile.findOne({ userId: consultation.patientId });
         const doctorProfile = await Profile.findOne({ userId: consultation.doctorId });
+
+        // Calculate time remaining (30 minutes max)
+        const startTime = new Date(consultationChat.startedAt);
+        const now = new Date();
+        const elapsedMinutes = Math.floor((now - startTime) / 1000 / 60);
+        const timeRemaining = Math.max(0, 30 - elapsedMinutes);
 
         res.status(200).json({
             success: true,
@@ -271,6 +301,7 @@ exports.getConsultationChat = async (req, res) => {
                 consultation,
                 consultationChat,
                 userRole: isPatient ? 'patient' : 'doctor',
+                timeRemaining, // Time remaining in minutes
                 otherUser: isPatient ? {
                     id: consultation.doctorId,
                     name: doctorUser.fullName,

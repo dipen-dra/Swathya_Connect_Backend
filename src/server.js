@@ -54,6 +54,7 @@ app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/prescriptions', require('./routes/prescriptionRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/chats', require('./routes/chatRoutes'));
+app.use('/api/consultation-chat', require('./routes/consultationChatRoutes'));
 app.use('/api/medicine-orders', require('./routes/medicineOrderRoutes'));
 
 // Error Handler
