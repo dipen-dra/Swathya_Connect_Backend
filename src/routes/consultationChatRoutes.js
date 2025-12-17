@@ -6,12 +6,17 @@ const {
     getConsultationChat,
     getMessages,
     markMessagesAsRead,
-    endConsultation
+    endConsultation,
+    uploadFile
 } = require('../controllers/consultationChatController');
 const { protect } = require('../middleware/authMiddleware');
+const upload = require('../config/multer');
 
 // All routes require authentication
 router.use(protect);
+
+// File upload route - must be before /:id routes
+router.post('/upload', upload.single('file'), uploadFile);
 
 // Get consultation chat details - matches frontend: /api/consultation-chat/:id
 router.get('/:id', getConsultationChat);

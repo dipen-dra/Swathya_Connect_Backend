@@ -86,6 +86,10 @@ const io = new Server(server, {
     }
 });
 
+// Initialize consultation socket handlers
+const initializeSocket = require('./socket');
+initializeSocket(io);
+
 // Socket authentication middleware
 io.use(async (socket, next) => {
     try {
@@ -113,6 +117,13 @@ io.use(async (socket, next) => {
 // Socket connection handler
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userId} (${socket.userRole})`);
+    console.log(`🆔 Socket ID: ${socket.id}`);
+
+    // DEBUG: Log ALL events received
+    socket.onAny((eventName, ...args) => {
+        console.log(`🔔 Event received: "${eventName}" from ${socket.userId} (Socket ID: ${socket.id})`);
+        console.log(`📦 Event data:`, args);
+    });
 
     // Join user's personal room
     socket.join(socket.userId);
@@ -165,8 +176,14 @@ io.on('connection', (socket) => {
 
             const message = await Message.create(messageData);
 
-            // Update chat
-            chat.lastMessage = type === 'text' ? content : `Sent ${type === 'image' ? 'an image' : 'a file'}`;
+            // Update chat - show actual text content for text messages, descriptive text for files
+            if (!type || type === 'text') {
+                chat.lastMessage = content;
+            } else if (type === 'image') {
+                chat.lastMessage = 'Sent an image';
+            } else {
+                chat.lastMessage = 'Sent a file';
+            }
             chat.lastMessageAt = new Date();
 
             // Increment unread count for receiver

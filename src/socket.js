@@ -3,6 +3,8 @@ const ConsultationMessage = require('./models/ConsultationMessage');
 const ConsultationChat = require('./models/ConsultationChat');
 const User = require('./models/User');
 
+console.log('🔧 socket.js file loaded - WITH SOCKET ID LOGGING');
+
 const initializeSocket = (io) => {
     // Middleware to authenticate socket connections
     io.use(async (socket, next) => {
@@ -33,9 +35,17 @@ const initializeSocket = (io) => {
 
     io.on('connection', (socket) => {
         console.log(`✅ User connected: ${socket.userName} (${socket.userId})`);
+        console.log(`🆔 Socket ID: ${socket.id}`);
+
+        // DEBUG: Log ALL events received
+        socket.onAny((eventName, ...args) => {
+            console.log(`🔔 Event received: "${eventName}" from ${socket.userName} (Socket ID: ${socket.id})`);
+            console.log(`📦 Event data:`, args);
+        });
 
         // Join consultation room
         socket.on('join-consultation', async (consultationId) => {
+            console.log('📍 Backend: Received join-consultation event from:', socket.userName, 'for consultation:', consultationId);
             try {
                 const roomName = `consultation-${consultationId}`;
                 socket.join(roomName);
@@ -57,6 +67,8 @@ const initializeSocket = (io) => {
 
         // Send message
         socket.on('send-message', async (data) => {
+            console.log('📨 Backend: Received send-message event from:', socket.userName);
+            console.log('📨 Backend: Message data:', data);
             try {
                 const { consultationId, content, messageType = 'text', fileUrl, fileName, fileType, fileSize } = data;
 
@@ -64,6 +76,7 @@ const initializeSocket = (io) => {
                 const consultationChat = await ConsultationChat.findOne({ consultationId });
 
                 if (!consultationChat) {
+                    console.log('❌ Backend: Consultation chat not found for ID:', consultationId);
                     socket.emit('error', { message: 'Consultation chat not found' });
                     return;
                 }

@@ -478,8 +478,12 @@ exports.endConsultation = async (req, res) => {
             });
         }
 
-        // Verify doctor owns this consultation
-        if (consultation.doctorId.toString() !== doctorId) {
+        // Verify user is part of this consultation (doctor or patient)
+        const userId = req.user.id;
+        const isDoctor = consultation.doctorId.toString() === userId;
+        const isPatient = consultation.patientId.toString() === userId;
+
+        if (!isDoctor && !isPatient) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to end this consultation'
@@ -517,6 +521,41 @@ exports.endConsultation = async (req, res) => {
         });
     } catch (error) {
         console.error('End consultation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Upload file for consultation chat
+// @route   POST /api/consultation-chat/upload
+// @access  Private (Doctor, Patient)
+exports.uploadFile = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // Generate file URL
+        const fileUrl = `/uploads/chat-attachments/${req.file.filename}`;
+
+        res.status(200).json({
+            success: true,
+            message: 'File uploaded successfully',
+            file: {
+                url: fileUrl,
+                filename: req.file.originalname,
+                mimetype: req.file.mimetype,
+                size: req.file.size
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading file:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',
