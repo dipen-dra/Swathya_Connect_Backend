@@ -1,0 +1,73 @@
+// @desc    Generate Agora token for audio/video consultation
+// @route   POST /api/consultation-chat/:id/agora-token
+// @access  Private (Doctor, Patient)
+exports.generateAgoraToken = async (req, res) => {
+    try {
+        const consultationId = req.params.id;
+        const userId = req.user.id;
+
+        // Get consultation chat
+        const consultationChat = await ConsultationChat.findOne({ consultationId })
+            .populate('consultationId');
+
+        if (!consultationChat) {
+            return res.status(404).json({
+                success: false,
+                message: 'Consultation chat not found'
+            });
+        }
+
+        // Verify user is part of this consultation
+        const isDoctor = consultationChat.doctorId.toString() === userId;
+        const isPatient = consultationChat.patientId.toString() === userId;
+
+        if (!isDoctor && !isPatient) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        // Verify consultation type is audio or video
+        const consultation = consultationChat.consultationId;
+        if (consultation.type !== 'audio' && consultation.type !== 'video') {
+            return res.status(400).json({
+                success: false,
+                message: 'This consultation is not an audio or video consultation'
+            });
+        }
+
+        // Use consultation ID as channel name for uniqueness
+        const channelName = consultationId;
+        
+        // Generate unique UID for user (use last 8 chars of user ID converted to number)
+        const uid = parseInt(userId.slice(-8), 16) % 1000000;
+
+        // Token expires in 1 hour (3600 seconds)
+        const token = generateAgoraToken(channelName, uid, 'publisher', 3600);
+
+        // Update channel name in consultation chat if not set
+        if (!consultationChat.agoraChannelName) {
+            consultationChat.agoraChannelName = channelName;
+            await consultationChat.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                token,
+                channelName,
+                uid,
+                appId: process.env.AGORA_APP_ID,
+                expiresIn: 3600 // seconds
+            }
+        });
+    } catch (error) {
+        console.error('Error generating Agora token:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};

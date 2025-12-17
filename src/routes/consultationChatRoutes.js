@@ -7,7 +7,8 @@ const {
     getMessages,
     markMessagesAsRead,
     endConsultation,
-    uploadFile
+    uploadFile,
+    generateAgoraToken
 } = require('../controllers/consultationChatController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../config/multer');
@@ -35,5 +36,8 @@ router.post('/:id/join', joinConsultation);
 
 // End consultation (Doctor only)
 router.post('/:id/end', endConsultation);
+
+// Generate Agora token for audio/video call
+router.post('/:id/agora-token', generateAgoraToken);
 
 module.exports = router;

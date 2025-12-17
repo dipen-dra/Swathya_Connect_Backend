@@ -39,6 +39,23 @@ const consultationChatSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Audio/Video call fields
+    agoraChannelName: {
+        type: String,
+        default: null
+    },
+    callStartedAt: {
+        type: Date,
+        default: null
+    },
+    callEndedAt: {
+        type: Date,
+        default: null
+    },
+    callDuration: {
+        type: Number, // in seconds
+        default: 0
+    },
     unreadCount: {
         patient: {
             type: Number,
