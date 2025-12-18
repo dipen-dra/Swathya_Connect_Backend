@@ -99,6 +99,25 @@ const consultationSchema = new mongoose.Schema({
         enum: ['Khalti', 'eSewa', 'Cash'],
         default: null
     },
+    // Expiry tracking fields
+    expiryStage: {
+        type: String,
+        enum: [null, 'expired', 'permanently_expired'],
+        default: null
+    },
+    expiredAt: {
+        type: Date,
+        default: null
+    },
+    isReRequest: {
+        type: Boolean,
+        default: false
+    },
+    originalConsultationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Consultation',
+        default: null
+    },
     prescriptionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Prescription',

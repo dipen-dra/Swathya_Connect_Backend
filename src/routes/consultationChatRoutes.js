@@ -8,7 +8,8 @@ const {
     markMessagesAsRead,
     endConsultation,
     uploadFile,
-    generateAgoraToken
+    generateAgoraToken,
+    startCallTimer
 } = require('../controllers/consultationChatController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../config/multer');
@@ -39,5 +40,8 @@ router.post('/:id/end', endConsultation);
 
 // Generate Agora token for audio/video call
 router.post('/:id/agora-token', generateAgoraToken);
+
+// Start call timer when both users are connected
+router.post('/:id/start-timer', startCallTimer);
 
 module.exports = router;

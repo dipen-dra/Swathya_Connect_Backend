@@ -516,3 +516,67 @@ exports.sendConsultationStartedEmail = async (userEmail, userName, consultationD
 };
 
 module.exports = exports;
+
+
+// Send consultation expired refund email
+exports.sendConsultationExpiredEmail = async (patient, doctor, consultation) => {
+    const mailOptions = {
+        from: `"Swasthya Connect" <${process.env.EMAIL_USER}>`,
+        to: patient.email,
+        subject: 'Consultation Expired - Refund Initiated',
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                    .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                    .info-box { background: white; padding: 20px; margin: 20px 0; border-left: 4px solid #667eea; border-radius: 5px; }
+                    .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Consultation Expired</h1>
+                    </div>
+                    <div class="content">
+                        <p>Dear ${patient.firstName || 'Patient'},</p>
+                        
+                        <p>We regret to inform you that your consultation with <strong>Dr. ${doctor.firstName} ${doctor.lastName}</strong> could not be completed as it expired.</p>
+                        
+                        <div class="info-box">
+                            <h3>Consultation Details:</h3>
+                            <p><strong>Doctor:</strong> Dr. ${doctor.firstName} ${doctor.lastName}</p>
+                            <p><strong>Specialty:</strong> ${consultation.specialty}</p>
+                            <p><strong>Type:</strong> ${consultation.type.toUpperCase()}</p>
+                            <p><strong>Scheduled:</strong> ${new Date(consultation.date).toLocaleDateString()} at ${consultation.time}</p>
+                            <p><strong>Consultation Fee:</strong> NPR ${consultation.fee}</p>
+                        </div>
+                        
+                        <h3>Refund Information:</h3>
+                        <p>Your payment of <strong>NPR ${consultation.fee}</strong> will be refunded manually within <strong>24 hours</strong>.</p>
+                        
+                        <p>We apologize for any inconvenience caused. If you have any questions, please contact our support team.</p>
+                        
+                        <p>Best regards,<br>Swasthya Connect Team</p>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated email. Please do not reply.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return { success: true };
+    } catch (error) {
+        console.error('Error sending expired consultation email:', error);
+        return { success: false, error: error.message };
+    }
+};

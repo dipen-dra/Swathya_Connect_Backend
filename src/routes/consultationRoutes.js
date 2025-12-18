@@ -8,7 +8,8 @@ const {
     cancelConsultation,
     rateConsultation,
     approveConsultation,
-    rejectConsultation
+    rejectConsultation,
+    reRequestConsultation
 } = require('../controllers/consultationController');
 const { protect } = require('../middleware/auth');
 
@@ -31,5 +32,8 @@ router.route('/:id/approve')
 
 router.route('/:id/reject')
     .put(protect, rejectConsultation);
+
+router.route('/:id/re-request')
+    .post(protect, reRequestConsultation);
 
 module.exports = router;

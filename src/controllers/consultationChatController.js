@@ -574,15 +574,41 @@ exports.generateAgoraToken = async (req, res) => {
         const consultationId = req.params.id;
         const userId = req.user.id;
 
-        // Get consultation chat
-        const consultationChat = await ConsultationChat.findOne({ consultationId })
+        // Get or create consultation chat
+        let consultationChat = await ConsultationChat.findOne({ consultationId })
             .populate('consultationId');
 
         if (!consultationChat) {
-            return res.status(404).json({
-                success: false,
-                message: 'Consultation chat not found'
+            // Consultation chat doesn't exist yet, create it
+            const Consultation = require('../models/Consultation');
+            const consultation = await Consultation.findById(consultationId);
+
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Consultation not found'
+                });
+            }
+
+            // Verify consultation type is audio or video
+            if (consultation.type !== 'audio' && consultation.type !== 'video') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This consultation is not an audio or video consultation'
+                });
+            }
+
+            // Create consultation chat
+            consultationChat = await ConsultationChat.create({
+                consultationId: consultation._id,
+                doctorId: consultation.doctorId,
+                patientId: consultation.patientId,
+                status: 'active'
             });
+
+            // Populate the consultation
+            consultationChat = await ConsultationChat.findById(consultationChat._id)
+                .populate('consultationId');
         }
 
         // Verify user is part of this consultation
@@ -607,7 +633,7 @@ exports.generateAgoraToken = async (req, res) => {
 
         // Use consultation ID as channel name for uniqueness
         const channelName = consultationId;
-        
+
         // Generate unique UID for user (use last 8 chars of user ID converted to number)
         const uid = parseInt(userId.slice(-8), 16) % 1000000;
 
@@ -617,7 +643,17 @@ exports.generateAgoraToken = async (req, res) => {
         // Update channel name in consultation chat if not set
         if (!consultationChat.agoraChannelName) {
             consultationChat.agoraChannelName = channelName;
-            await consultationChat.save();
+        }
+
+        await consultationChat.save();
+
+        // Calculate elapsed time in seconds (only if call has started)
+        let elapsedSeconds = 0;
+        let remainingSeconds = 1800; // Default 30 minutes
+
+        if (consultationChat.callStartedAt) {
+            elapsedSeconds = Math.floor((Date.now() - new Date(consultationChat.callStartedAt).getTime()) / 1000);
+            remainingSeconds = Math.max(0, 1800 - elapsedSeconds);
         }
 
         res.status(200).json({
@@ -627,11 +663,67 @@ exports.generateAgoraToken = async (req, res) => {
                 channelName,
                 uid,
                 appId: process.env.AGORA_APP_ID,
-                expiresIn: 3600 // seconds
+                expiresIn: 3600, // token expiration
+                callStartedAt: consultationChat.callStartedAt,
+                elapsedSeconds,
+                remainingSeconds
             }
         });
     } catch (error) {
         console.error('Error generating Agora token:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Start call timer when both users are connected
+ * @route POST /api/consultation-chat/:id/start-timer
+ * @access Private (Doctor or Patient)
+ */
+exports.startCallTimer = async (req, res) => {
+    try {
+        const consultationId = req.params.id;
+        const userId = req.user.id;
+
+        // Get consultation chat
+        const consultationChat = await ConsultationChat.findOne({ consultationId });
+
+        if (!consultationChat) {
+            return res.status(404).json({
+                success: false,
+                message: 'Consultation chat not found'
+            });
+        }
+
+        // Verify user is part of this consultation
+        const isDoctor = consultationChat.doctorId.toString() === userId;
+        const isPatient = consultationChat.patientId.toString() === userId;
+
+        if (!isDoctor && !isPatient) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        // Only set callStartedAt if not already set (first time both users connect)
+        if (!consultationChat.callStartedAt) {
+            consultationChat.callStartedAt = new Date();
+            await consultationChat.save();
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                callStartedAt: consultationChat.callStartedAt
+            }
+        });
+    } catch (error) {
+        console.error('Error starting call timer:', error);
         res.status(500).json({
             success: false,
             message: 'Server error',

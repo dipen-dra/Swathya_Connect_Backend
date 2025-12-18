@@ -16,6 +16,10 @@ connectDB();
 const { startReminderScheduler } = require('./utils/reminderScheduler');
 startReminderScheduler();
 
+// Start consultation expiry checker
+const { startConsultationExpiryChecker } = require('./utils/consultationExpiryChecker');
+startConsultationExpiryChecker();
+
 // Initialize WhatsApp service (will log if credentials are missing)
 require('./utils/whatsappService');
 
