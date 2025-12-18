@@ -362,6 +362,17 @@ exports.approveConsultation = async (req, res) => {
         consultation.approvedAt = new Date();
         await consultation.save();
 
+        // If this is a re-requested consultation, delete the original expired one
+        if (consultation.isReRequest && consultation.originalConsultationId) {
+            try {
+                await Consultation.findByIdAndDelete(consultation.originalConsultationId);
+                console.log(`✅ Deleted original expired consultation: ${consultation.originalConsultationId}`);
+            } catch (deleteError) {
+                console.error('Error deleting original consultation:', deleteError);
+                // Don't fail the approval if deletion fails
+            }
+        }
+
         // Get patient details for email notification
         const patient = await User.findById(consultation.patientId);
 
