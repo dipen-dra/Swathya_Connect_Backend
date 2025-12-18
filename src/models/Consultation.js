@@ -118,6 +118,10 @@ const consultationSchema = new mongoose.Schema({
         ref: 'Consultation',
         default: null
     },
+    hasBeenReRequested: {
+        type: Boolean,
+        default: false
+    },
     prescriptionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Prescription',

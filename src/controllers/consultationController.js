@@ -515,6 +515,18 @@ exports.reRequestConsultation = async (req, res) => {
             });
         }
 
+        // Check if consultation has already been re-requested
+        if (originalConsultation.hasBeenReRequested) {
+            return res.status(400).json({
+                success: false,
+                message: 'This consultation has already been re-requested'
+            });
+        }
+
+        // Set date to tomorrow at same time to avoid immediate re-expiry
+        const tomorrow = new Date(originalConsultation.date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
         // Create new consultation with same details (free re-request)
         const newConsultation = await Consultation.create({
             patientId: originalConsultation.patientId,
@@ -522,7 +534,7 @@ exports.reRequestConsultation = async (req, res) => {
             doctorName: originalConsultation.doctorName,
             specialty: originalConsultation.specialty,
             doctorImage: originalConsultation.doctorImage,
-            date: originalConsultation.date,
+            date: tomorrow, // Tomorrow at same time
             time: originalConsultation.time,
             type: originalConsultation.type,
             status: 'upcoming', // Back to pending approval
@@ -533,6 +545,10 @@ exports.reRequestConsultation = async (req, res) => {
             isReRequest: true,
             originalConsultationId: originalConsultation._id
         });
+
+        // Mark original consultation as re-requested to prevent duplicates
+        originalConsultation.hasBeenReRequested = true;
+        await originalConsultation.save();
 
         res.status(201).json({
             success: true,
