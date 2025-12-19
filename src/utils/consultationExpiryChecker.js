@@ -76,8 +76,9 @@ const checkExpiredConsultations = async () => {
             console.log(`✅ Consultation ${consultation._id} permanently expired`);
         }
 
-        if (consultationsToExpire.length > 0 || consultationsToPermanentlyExpire.length > 0) {
-            console.log(`📊 Expiry check: ${consultationsToExpire.length} expired, ${consultationsToPermanentlyExpire.length} permanently expired`);
+
+        if (consultationsToCheck.length > 0 || consultationsToPermanentlyExpire.length > 0) {
+            console.log(`📊 Expiry check completed: checked ${consultationsToCheck.length} consultations, ${consultationsToPermanentlyExpire.length} permanently expired`);
         }
     } catch (error) {
         console.error('❌ Error checking expired consultations:', error);

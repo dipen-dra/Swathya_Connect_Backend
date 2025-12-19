@@ -631,6 +631,14 @@ exports.generateAgoraToken = async (req, res) => {
             });
         }
 
+        // Check if patient is trying to join before doctor has started
+        if (isPatient && !consultationChat.callStartedAt) {
+            return res.status(403).json({
+                success: false,
+                message: 'Your consultation link will be available shortly. Please wait for the doctor to start the consultation.'
+            });
+        }
+
         // Use consultation ID as channel name for uniqueness
         const channelName = consultationId;
 
@@ -714,6 +722,35 @@ exports.startCallTimer = async (req, res) => {
         if (!consultationChat.callStartedAt) {
             consultationChat.callStartedAt = new Date();
             await consultationChat.save();
+
+            // Send email to patient when doctor starts the consultation
+            if (isDoctor) {
+                try {
+                    const consultation = await Consultation.findById(consultationId)
+                        .populate('patientId', 'email')
+                        .populate('doctorId', 'email');
+
+                    const patientProfile = await Profile.findOne({ userId: consultation.patientId._id });
+                    const doctorProfile = await Profile.findOne({ userId: consultation.doctorId._id });
+
+                    if (consultation && consultation.patientId && consultation.patientId.email) {
+                        await sendConsultationStartedEmail(
+                            consultation.patientId.email,
+                            {
+                                patientName: `${patientProfile?.firstName || ''} ${patientProfile?.lastName || ''}`.trim(),
+                                doctorName: `Dr. ${doctorProfile?.firstName || ''} ${doctorProfile?.lastName || ''}`.trim(),
+                                consultationType: consultation.type,
+                                consultationDate: consultation.date,
+                                consultationTime: consultation.time
+                            }
+                        );
+                        console.log(`✅ Consultation started email sent to patient: ${consultation.patientId.email}`);
+                    }
+                } catch (emailError) {
+                    console.error('❌ Error sending consultation started email:', emailError);
+                    // Don't fail the request if email fails
+                }
+            }
         }
 
         res.status(200).json({
