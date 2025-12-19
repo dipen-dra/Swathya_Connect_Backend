@@ -29,6 +29,10 @@ exports.getConsultations = async (req, res) => {
         // (keep in database for audit/accounting, but hide from users)
         query.expiryStage = { $ne: 'permanently_expired' };
 
+        // Also exclude expired consultations that have been re-requested
+        // (they're replaced by new consultations, no need to show old ones)
+        query.hasBeenReRequested = { $ne: true };
+
         const consultations = await Consultation.find(query)
             .populate('patientId', 'name fullName email phone')
             .populate('doctorId', 'name fullName email')
