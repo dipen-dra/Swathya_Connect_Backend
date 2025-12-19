@@ -11,20 +11,38 @@ const checkExpiredConsultations = async () => {
         const now = new Date();
 
         // Check 1: Find approved consultations that are 30+ minutes past scheduled time
-        const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
-
-        const consultationsToExpire = await Consultation.find({
+        // We need to combine date and time fields to get the actual scheduled datetime
+        const consultationsToCheck = await Consultation.find({
             status: 'approved',
-            expiryStage: null,
-            date: { $lte: thirtyMinutesAgo }
+            expiryStage: null
         }).populate('patientId doctorId');
 
-        for (const consultation of consultationsToExpire) {
-            consultation.expiryStage = 'expired';
-            consultation.expiredAt = now;
-            await consultation.save();
+        for (const consultation of consultationsToCheck) {
+            // Combine date and time to get actual scheduled datetime
+            const scheduledDate = new Date(consultation.date);
+            const timeParts = consultation.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
 
-            console.log(`✅ Consultation ${consultation._id} marked as expired`);
+            if (timeParts) {
+                let hours = parseInt(timeParts[1]);
+                const minutes = parseInt(timeParts[2]);
+                const period = timeParts[3].toUpperCase();
+
+                // Convert to 24-hour format
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+
+                scheduledDate.setHours(hours, minutes, 0, 0);
+
+                // Check if 30+ minutes have passed since scheduled time
+                const thirtyMinutesAfterScheduled = new Date(scheduledDate.getTime() + 30 * 60 * 1000);
+
+                if (now >= thirtyMinutesAfterScheduled) {
+                    consultation.expiryStage = 'expired';
+                    consultation.expiredAt = now;
+                    await consultation.save();
+                    console.log(`✅ Consultation ${consultation._id} marked as expired (scheduled: ${scheduledDate}, now: ${now})`);
+                }
+            }
         }
 
         // Check 2: Find expired consultations that are 6+ hours old
