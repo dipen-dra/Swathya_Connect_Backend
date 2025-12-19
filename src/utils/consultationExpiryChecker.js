@@ -39,16 +39,20 @@ const checkExpiredConsultations = async () => {
             consultation.expiryStage = 'permanently_expired';
             await consultation.save();
 
-            // Send refund email
-            try {
-                await sendConsultationExpiredEmail(
-                    consultation.patientId,
-                    consultation.doctorId,
-                    consultation
-                );
-                console.log(`✅ Refund email sent for consultation ${consultation._id}`);
-            } catch (emailError) {
-                console.error(`❌ Error sending refund email for ${consultation._id}:`, emailError);
+            // Send refund email (only if patient and doctor data exists)
+            if (consultation.patientId && consultation.doctorId) {
+                try {
+                    await sendConsultationExpiredEmail(
+                        consultation.patientId,
+                        consultation.doctorId,
+                        consultation
+                    );
+                    console.log(`✅ Refund email sent for consultation ${consultation._id}`);
+                } catch (emailError) {
+                    console.error(`❌ Error sending refund email for ${consultation._id}:`, emailError);
+                }
+            } else {
+                console.log(`⚠️ Skipping email for ${consultation._id} - missing patient or doctor data`);
             }
 
             console.log(`✅ Consultation ${consultation._id} permanently expired`);
