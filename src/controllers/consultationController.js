@@ -542,9 +542,11 @@ exports.reRequestConsultation = async (req, res) => {
             });
         }
 
-        // Set date to tomorrow at same time to avoid immediate re-expiry
-        const tomorrow = new Date(originalConsultation.date);
+        // Set date to tomorrow (from NOW) at same time to avoid immediate re-expiry
+        const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
+        // Keep the same time from original consultation
+        tomorrow.setHours(0, 0, 0, 0); // Reset to midnight, will use time string
 
         // Create new consultation with same details (free re-request)
         const newConsultation = await Consultation.create({
