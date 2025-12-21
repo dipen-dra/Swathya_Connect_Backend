@@ -31,15 +31,23 @@ exports.getDashboardStats = async (req, res) => {
             : thisMonthConsultations > 0 ? 100 : 0;
 
         // 2. Upcoming Appointments (status: upcoming, scheduled, pending, or approved)
-        // Count consultations that are not completed, cancelled, or rejected
+        // Count consultations that are not completed, cancelled, rejected, or expired
         const upcomingAppointments = await Consultation.countDocuments({
             patientId: req.user.id,
-            status: { $in: ['upcoming', 'scheduled', 'pending', 'approved'] }
+            status: { $in: ['upcoming', 'scheduled', 'pending', 'approved'] },
+            $or: [
+                { expiryStage: null },
+                { expiryStage: { $exists: false } }
+            ]
         });
 
         const lastMonthUpcoming = await Consultation.countDocuments({
             patientId: req.user.id,
             status: { $in: ['upcoming', 'scheduled', 'pending', 'approved'] },
+            $or: [
+                { expiryStage: null },
+                { expiryStage: { $exists: false } }
+            ],
             createdAt: { $gte: firstDayOfLastMonth, $lt: firstDayOfMonth }
         });
 
