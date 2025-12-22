@@ -207,9 +207,10 @@ const Order = require('../models/Order');
 // @access  Private/Pharmacy
 exports.getOrders = async (req, res) => {
     try {
-        const orders = await Order.find({ pharmacyId: req.user.id })
+        const MedicineOrder = require('../models/MedicineOrder');
+        const orders = await MedicineOrder.find({ pharmacyId: req.user.id })
             .populate('patientId', 'fullName email phone')
-            .sort({ orderDate: -1 });
+            .sort({ createdAt: -1 });
 
         res.status(200).json({
             success: true,
@@ -231,14 +232,15 @@ exports.getOrders = async (req, res) => {
 exports.getStats = async (req, res) => {
     try {
         const pharmacyId = req.user.id;
+        const MedicineOrder = require('../models/MedicineOrder');
 
         // Total orders
-        const totalOrders = await Order.countDocuments({ pharmacyId });
+        const totalOrders = await MedicineOrder.countDocuments({ pharmacyId });
 
-        // Pending orders
-        const pendingOrders = await Order.countDocuments({
+        // Pending orders (waiting for verification)
+        const pendingOrders = await MedicineOrder.countDocuments({
             pharmacyId,
-            status: 'pending'
+            status: 'pending_verification'
         });
 
         // This month revenue
@@ -246,18 +248,19 @@ exports.getStats = async (req, res) => {
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const thisMonthOrders = await Order.find({
+        // Find orders that are paid (regardless of delivery status)
+        const contentOrders = await MedicineOrder.find({
             pharmacyId,
-            status: 'completed',
-            completedDate: { $gte: startOfMonth }
+            paymentStatus: 'paid',
+            updatedAt: { $gte: startOfMonth }
         });
 
-        const thisMonthRevenue = thisMonthOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+        const thisMonthRevenue = contentOrders.reduce((sum, order) => sum + (order.paidAmount || order.totalAmount || 0), 0);
 
         // Active customers (unique patients who ordered this month)
-        const activeCustomers = await Order.distinct('patientId', {
+        const activeCustomers = await MedicineOrder.distinct('patientId', {
             pharmacyId,
-            orderDate: { $gte: startOfMonth }
+            createdAt: { $gte: startOfMonth }
         });
 
         res.status(200).json({
@@ -399,7 +402,12 @@ exports.getInventory = async (req, res) => {
 // @access  Private/Pharmacy
 exports.addInventoryItem = async (req, res) => {
     try {
-        const { medicineName, genericName, manufacturer, dosage, quantity, price, expiryDate, category, lowStockThreshold } = req.body;
+        const { medicineName, genericName, manufacturer, dosage, quantity, price, expiryDate, category, lowStockThreshold, description, isPublic } = req.body;
+
+        let image = req.body.image || ''; // Default to URL if provided
+        if (req.file) {
+            image = `/uploads/medicines/${req.file.filename}`;
+        }
 
         const inventoryItem = await Inventory.create({
             pharmacyId: req.user.id,
@@ -411,7 +419,10 @@ exports.addInventoryItem = async (req, res) => {
             price,
             expiryDate,
             category,
-            lowStockThreshold
+            lowStockThreshold,
+            image,
+            description,
+            isPublic
         });
 
         res.status(201).json({
@@ -449,9 +460,16 @@ exports.updateInventoryItem = async (req, res) => {
             });
         }
 
+        let updateData = { ...req.body };
+
+        // Handle image update
+        if (req.file) {
+            updateData.image = `/uploads/medicines/${req.file.filename}`;
+        }
+
         const updatedItem = await Inventory.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            updateData,
             { new: true, runValidators: true }
         );
 

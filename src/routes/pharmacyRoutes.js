@@ -31,10 +31,12 @@ router.get('/dashboard/stats', protect, authorize('pharmacy'), getStats);
 router.put('/dashboard/orders/:id/status', protect, authorize('pharmacy'), updateOrderStatus);
 router.post('/dashboard/orders/create', protect, authorize('patient'), createOrder);
 
+const uploadMedicine = require('../config/medicineUpload');
+
 // Inventory management routes
 router.get('/dashboard/inventory', protect, authorize('pharmacy'), getInventory);
-router.post('/dashboard/inventory', protect, authorize('pharmacy'), addInventoryItem);
-router.put('/dashboard/inventory/:id', protect, authorize('pharmacy'), updateInventoryItem);
+router.post('/dashboard/inventory', protect, authorize('pharmacy'), uploadMedicine.single('image'), addInventoryItem);
+router.put('/dashboard/inventory/:id', protect, authorize('pharmacy'), uploadMedicine.single('image'), updateInventoryItem);
 router.delete('/dashboard/inventory/:id', protect, authorize('pharmacy'), deleteInventoryItem);
 
 module.exports = router;

@@ -13,10 +13,18 @@ const medicineOrderSchema = new mongoose.Schema({
         required: true
     },
 
+    // Order Type
+    type: {
+        type: String,
+        enum: ['prescription', 'ecommerce'],
+        default: 'prescription'
+    },
+
     // Prescription
     prescriptionImage: {
         type: String,
-        required: true
+        // Required only for prescription orders - handled in controller or by frontend sending dummy
+        required: function () { return this.type === 'prescription'; }
     },
     prescriptionVerified: {
         type: Boolean,

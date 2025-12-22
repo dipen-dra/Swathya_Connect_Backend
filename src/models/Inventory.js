@@ -45,6 +45,18 @@ const inventorySchema = new mongoose.Schema({
         enum: ['prescription', 'otc', 'supplement', 'other'],
         default: 'otc'
     },
+    image: {
+        type: String,
+        default: ''
+    },
+    description: {
+        type: String,
+        default: ''
+    },
+    isPublic: {
+        type: Boolean,
+        default: true
+    },
     lowStockThreshold: {
         type: Number,
         default: 10

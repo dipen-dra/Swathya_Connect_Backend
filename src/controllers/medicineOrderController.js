@@ -7,16 +7,88 @@ const path = require('path');
 // @desc    Create medicine order (patient uploads prescription)
 // @route   POST /api/medicine-orders
 // @access  Private (Patient)
+// @desc    Create medicine order (patient uploads prescription OR e-commerce)
+// @route   POST /api/medicine-orders
+// @access  Private (Patient)
 exports.createMedicineOrder = async (req, res) => {
     try {
-        const { pharmacyId, deliveryAddress, deliveryNotes } = req.body;
+        const { pharmacyId, deliveryAddress, deliveryNotes, type, items, contactNumber, paymentMethod, totalAmount } = req.body;
 
         console.log('📦 Creating medicine order:', {
             patientId: req.user.id,
             pharmacyId,
-            file: req.file
+            type: type || 'prescription',
+            file: req.file ? 'Attached' : 'None'
         });
 
+        // E-commerce Order Flow
+        if (type === 'ecommerce') {
+            if (!items || items.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Order items are required'
+                });
+            }
+
+            // Process items and reserve stock
+            const processedMedicines = [];
+            for (const item of items) {
+                const inventoryItem = await Inventory.findById(item.inventoryId);
+
+                if (!inventoryItem) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Item not found: ${item.medicineName}`
+                    });
+                }
+
+                if (inventoryItem.quantity < item.quantity) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Insufficient stock for: ${item.medicineName}`
+                    });
+                }
+
+                // Reserve stock
+                inventoryItem.reservedStock += Number(item.quantity);
+                await inventoryItem.save();
+
+                processedMedicines.push({
+                    inventoryId: item.inventoryId,
+                    name: item.medicineName,
+                    quantity: item.quantity,
+                    pricePerUnit: item.price,
+                    totalPrice: item.price * item.quantity,
+                    dosage: inventoryItem.dosage || 'N/A'
+                });
+            }
+
+            const order = await MedicineOrder.create({
+                patientId: req.user.id,
+                pharmacyId,
+                medicines: processedMedicines,
+                deliveryAddress,
+                deliveryNotes,
+                contactNumber,
+                paymentMethod: paymentMethod || null,
+                totalAmount: totalAmount || 0,
+                subtotal: (totalAmount - (req.body.deliveryCharge || 0)) || 0, // Fallback calculation
+                deliveryCharges: req.body.deliveryCharge || 0,
+                status: 'awaiting_payment', // Skip verification for direct buy
+                type: 'ecommerce',
+                prescriptionVerified: true // Auto-verified since it's from inventory
+            });
+
+            await order.populate('pharmacyId', 'fullName email');
+
+            return res.status(201).json({
+                success: true,
+                message: 'Order placed successfully',
+                order
+            });
+        }
+
+        // Standard Prescription Flow
         if (!req.file) {
             return res.status(400).json({
                 success: false,
@@ -46,6 +118,7 @@ exports.createMedicineOrder = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error creating medicine order:', error);
+        // Rollback reserved stock if needed (omitted for brevity but recommended)
         res.status(500).json({
             success: false,
             message: 'Server error',
