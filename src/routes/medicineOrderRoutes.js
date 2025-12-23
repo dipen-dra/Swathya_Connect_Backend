@@ -15,7 +15,8 @@ const { protect, authorize } = require('../middleware/auth');
 const uploadPrescription = require('../config/prescriptionUpload');
 
 // Patient routes
-router.post('/', protect, authorize('patient'), uploadPrescription.single('prescription'), createMedicineOrder);
+// Patient routes (Ecommerce accessible to all roles)
+router.post('/', protect, authorize('patient', 'doctor', 'pharmacy', 'admin'), uploadPrescription.single('prescription'), createMedicineOrder);
 router.get('/', protect, authorize('patient'), getPatientOrders);
 router.put('/:id/cancel', protect, authorize('patient'), cancelOrder);
 router.put('/:id/confirm-payment', protect, authorize('patient'), confirmPayment);
