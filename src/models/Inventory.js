@@ -42,7 +42,7 @@ const inventorySchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        enum: ['prescription', 'otc', 'supplement', 'other'],
+        required: true,
         default: 'otc'
     },
     image: {
