@@ -1,5 +1,6 @@
 const Consultation = require('../models/Consultation');
 const User = require('../models/User');
+const Inventory = require('../models/Inventory');
 const { sendConsultationConfirmation } = require('../utils/emailService');
 
 const KHALTI_SECRET_KEY = 'test_secret_key_3f78fb6364ef4bd1b5fc670ce33a06f5';
@@ -155,6 +156,24 @@ exports.verifyKhaltiMedicine = async (req, res) => {
 
             if (!order) {
                 return res.status(404).json({ success: false, message: 'Order not found' });
+            }
+
+            // Reduce inventory stock and release reserved stock
+            try {
+                for (const med of order.medicines) {
+                    if (med.inventoryId) {
+                        const inventoryItem = await Inventory.findById(med.inventoryId);
+                        if (inventoryItem) {
+                            // Reduce actual stock
+                            inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
+                            // Release reserved stock
+                            inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
+                            await inventoryItem.save();
+                        }
+                    }
+                }
+            } catch (inventoryError) {
+                console.error('⚠️ Error updating inventory (non-critical):', inventoryError);
             }
 
             console.log('✅ Medicine order payment updated via Khalti:', order._id);

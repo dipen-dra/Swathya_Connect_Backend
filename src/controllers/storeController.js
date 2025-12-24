@@ -13,7 +13,7 @@ exports.getPublicProducts = async (req, res) => {
         // Base query - only public items and available stock
         const query = {
             isPublic: true,
-            quantity: { $gt: 0 } // Only show in-stock items
+            $expr: { $gt: [{ $subtract: ["$quantity", { $ifNull: ["$reservedStock", 0] }] }, 0] }
         };
 
         // Search filter
@@ -54,13 +54,23 @@ exports.getPublicProducts = async (req, res) => {
 
         const total = await Inventory.countDocuments(query);
 
+        // Map to return available quantity instead of total physical quantity
+        const sanitizedProducts = products.map(product => {
+            const p = product.toObject();
+            return {
+                ...p,
+                quantity: Math.max(0, p.quantity - (p.reservedStock || 0)),
+                originalQuantity: p.quantity // Optional: keep track of physical stock if needed for admin
+            };
+        });
+
         res.status(200).json({
             success: true,
-            count: products.length,
+            count: sanitizedProducts.length,
             total,
             totalPages: Math.ceil(total / limit),
             currentPage: Number(page),
-            data: products
+            data: sanitizedProducts
         });
 
     } catch (error) {
@@ -97,9 +107,15 @@ exports.getProductDetails = async (req, res) => {
             });
         }
 
+        const p = product.toObject();
+        const availableStock = Math.max(0, p.quantity - (p.reservedStock || 0));
+
         res.status(200).json({
             success: true,
-            data: product
+            data: {
+                ...p,
+                quantity: availableStock
+            }
         });
 
     } catch (error) {
