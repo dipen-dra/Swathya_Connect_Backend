@@ -1,0 +1,8 @@
+--- PHARMACY LIST START ---
+ID: 6939144c1660f91d615f09a7
+Name: undefined
+Email: jrlucifer436@gmail.com
+---
+--- PHARMACY LIST END ---
+--- SWASTHYA USERS START ---
+--- SWASTHYA USERS END ---
