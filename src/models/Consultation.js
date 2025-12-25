@@ -109,6 +109,19 @@ const consultationSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    // Participation tracking for smart expiry
+    patientJoined: {
+        type: Boolean,
+        default: false
+    },
+    doctorJoined: {
+        type: Boolean,
+        default: false
+    },
+    enteredConsultationAt: {
+        type: Date,
+        default: null
+    },
     isReRequest: {
         type: Boolean,
         default: false

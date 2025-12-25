@@ -33,14 +33,30 @@ const checkExpiredConsultations = async () => {
 
                 scheduledDate.setHours(hours, minutes, 0, 0);
 
-                // Check if 30+ minutes have passed since scheduled time
-                const thirtyMinutesAfterScheduled = new Date(scheduledDate.getTime() + 30 * 60 * 1000);
+                // LOGIC 1: Both parties joined -> Mark as COMPLETED after duration
+                if (consultation.enteredConsultationAt) {
+                    const durationMinutes = consultation.type === 'chat' ? 45 : 30;
+                    const completionTime = new Date(consultation.enteredConsultationAt.getTime() + durationMinutes * 60 * 1000);
 
-                if (now >= thirtyMinutesAfterScheduled) {
-                    consultation.expiryStage = 'expired';
-                    consultation.expiredAt = now;
-                    await consultation.save();
-                    console.log(`✅ Consultation ${consultation._id} marked as expired (scheduled: ${scheduledDate}, now: ${now})`);
+                    if (now >= completionTime) {
+                        consultation.status = 'completed';
+                        consultation.save();
+                        console.log(`✅ Consultation ${consultation._id} marked as COMPLETED (Duration: ${durationMinutes}m)`);
+                        continue; // Skip expiry check
+                    }
+                }
+
+                // LOGIC 2: No-show or partial join -> Mark as EXPIRED after 30 mins from SCHEDULED time
+                // Only if NOT actively joined/completed
+                if (!consultation.enteredConsultationAt) {
+                    const thirtyMinutesAfterScheduled = new Date(scheduledDate.getTime() + 30 * 60 * 1000);
+
+                    if (now >= thirtyMinutesAfterScheduled) {
+                        consultation.expiryStage = 'expired';
+                        consultation.expiredAt = now;
+                        await consultation.save();
+                        console.log(`✅ Consultation ${consultation._id} marked as EXPIRED (No-show/Partial)`);
+                    }
                 }
             }
         }

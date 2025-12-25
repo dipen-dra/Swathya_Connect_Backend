@@ -296,6 +296,22 @@ exports.getConsultationChat = async (req, res) => {
         const elapsedMinutes = Math.floor((now - startTime) / 1000 / 60);
         const timeRemaining = Math.max(0, 30 - elapsedMinutes);
 
+        // Update participation flags
+        if (isPatient && !consultation.patientJoined) {
+            consultation.patientJoined = true;
+            await consultation.save();
+        } else if (isDoctor && !consultation.doctorJoined) {
+            consultation.doctorJoined = true;
+            await consultation.save();
+        }
+
+        // Check if both have joined to set start time for duration logic
+        if (consultation.patientJoined && consultation.doctorJoined && !consultation.enteredConsultationAt) {
+            consultation.enteredConsultationAt = new Date();
+            await consultation.save();
+            console.log(`✅ Both parties joined consultation ${consultationId}. Timer started at ${consultation.enteredConsultationAt}`);
+        }
+
         res.status(200).json({
             success: true,
             data: {
@@ -620,6 +636,29 @@ exports.generateAgoraToken = async (req, res) => {
                 success: false,
                 message: 'Access denied'
             });
+        }
+
+        // Update participation flags (Audio/Video)
+        // consultationChat.consultationId is populated above
+        const consultationDoc = consultationChat.consultationId;
+
+        let needsSave = false;
+        if (isPatient && !consultationDoc.patientJoined) {
+            consultationDoc.patientJoined = true;
+            needsSave = true;
+        } else if (isDoctor && !consultationDoc.doctorJoined) {
+            consultationDoc.doctorJoined = true;
+            needsSave = true;
+        }
+
+        if (consultationDoc.patientJoined && consultationDoc.doctorJoined && !consultationDoc.enteredConsultationAt) {
+            consultationDoc.enteredConsultationAt = new Date();
+            console.log(`✅ Both parties joined AV consultation ${consultationId}. Timer started at ${consultationDoc.enteredConsultationAt}`);
+            needsSave = true;
+        }
+
+        if (needsSave) {
+            await consultationDoc.save();
         }
 
         // Verify consultation type is audio or video
