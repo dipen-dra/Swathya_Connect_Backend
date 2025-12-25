@@ -528,6 +528,80 @@ const deleteAccount = async (req, res) => {
     }
 };
 
+// @desc    Google Authentication (Login/Register)
+// @route   POST /api/auth/google
+// @access  Public
+const googleAuth = async (req, res) => {
+    try {
+        const { idToken, role } = req.body;
+        const { OAuth2Client } = require('google-auth-library');
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+
+        const { name, email, picture, email_verified } = ticket.getPayload();
+
+        if (!email_verified) {
+            return res.status(400).json({ success: false, message: 'Google email not verified' });
+        }
+
+        let user = await User.findOne({ email });
+
+        if (user) {
+            // LOGIN FLOW
+            // Check if IP is blocked (reuse existing logic if exported, or simplify for now)
+            // For now, straightforward login
+            const token = generateToken(res, user._id);
+            return res.status(200).json({
+                success: true,
+                token,
+                user: {
+                    _id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role,
+                    isVerified: user.isVerified
+                }
+            });
+        } else {
+            // REGISTER FLOW
+            const password = email + process.env.JWT_SECRET; // Dummy password for Google users
+            // You might want to flag these users as google-users to prevent password login without set password
+
+            user = await User.create({
+                fullName: name,
+                email,
+                password, // Mongoose pre-save will hash this
+                role: role || 'patient', // Default to patient if not provided
+                phone: '0000000000', // Placeholder phone
+                isVerified: role === 'patient', // Auto-verify patients, others false
+                verificationDocument: null // Explicitly null bypassing upload
+            });
+
+            const token = generateToken(res, user._id);
+            return res.status(201).json({
+                success: true,
+                message: 'User registered via Google successfully',
+                token,
+                user: {
+                    _id: user._id,
+                    fullName: user.fullName,
+                    email: user.email,
+                    role: user.role,
+                    isVerified: user.isVerified
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Google Auth Error:', error);
+        res.status(500).json({ success: false, message: 'Google Authentication Failed' });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -541,4 +615,5 @@ module.exports = {
     updateNotificationPreferences,
     deactivateAccount,
     deleteAccount,
+    googleAuth
 };

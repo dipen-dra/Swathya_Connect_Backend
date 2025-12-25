@@ -14,7 +14,9 @@ const {
     getSettings,
     updateNotificationPreferences,
     deactivateAccount,
+
     deleteAccount,
+    googleAuth
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -56,6 +58,9 @@ router.post('/register', upload.single('verificationDocument'), registerUser);
 router.post('/login', loginUser);
 router.post('/logout', logoutUser);
 router.get('/me', protect, getUserProfile);
+
+// Google Auth
+router.post('/google', googleAuth);
 
 // Password Reset Routes
 router.post('/forgot-password', forgotPassword);
