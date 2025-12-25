@@ -552,8 +552,6 @@ const googleAuth = async (req, res) => {
 
         if (user) {
             // LOGIN FLOW
-            // Check if IP is blocked (reuse existing logic if exported, or simplify for now)
-            // For now, straightforward login
             const token = generateToken(res, user._id);
             return res.status(200).json({
                 success: true,
@@ -568,17 +566,16 @@ const googleAuth = async (req, res) => {
             });
         } else {
             // REGISTER FLOW
-            const password = email + process.env.JWT_SECRET; // Dummy password for Google users
-            // You might want to flag these users as google-users to prevent password login without set password
+            const password = email + process.env.JWT_SECRET; // Dummy password
 
             user = await User.create({
                 fullName: name,
                 email,
-                password, // Mongoose pre-save will hash this
-                role: role || 'patient', // Default to patient if not provided
-                phone: '0000000000', // Placeholder phone
-                isVerified: role === 'patient', // Auto-verify patients, others false
-                verificationDocument: null // Explicitly null bypassing upload
+                password,
+                role: role || 'patient',
+                phone: '0000000000', // Placeholder
+                isVerified: role === 'patient',
+                verificationDocument: null
             });
 
             const token = generateToken(res, user._id);
