@@ -256,52 +256,70 @@ exports.verifyEsewaMedicine = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Order data not found or expired' });
         }
 
-        // Find and update the existing medicine order
-        const order = await MedicineOrder.findByIdAndUpdate(
-            orderData.orderId,
-            {
-                paymentStatus: 'paid',
-                paymentMethod: 'esewa',
-                paymentTransactionId: transaction_uuid,
-                paidAt: new Date(),
-                paidAmount: total_amount,
-                status: 'paid'
-            },
-            { new: true }
-        );
+        // Check if orderId is a valid ObjectId (Legacy/Existing Order)
+        const mongoose = require('mongoose');
+        let order = null;
 
-        if (!order) {
-            deletePendingOrder(transaction_uuid);
-            return res.status(404).json({ success: false, message: 'Order not found' });
+        if (mongoose.Types.ObjectId.isValid(orderData.orderId)) {
+            order = await MedicineOrder.findById(orderData.orderId);
         }
 
-        // Reduce inventory stock and release reserved stock
-        try {
-            for (const med of order.medicines) {
-                if (med.inventoryId) {
-                    const inventoryItem = await Inventory.findById(med.inventoryId);
-                    if (inventoryItem) {
-                        // Reduce actual stock
-                        inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
-                        // Release reserved stock
-                        inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
-                        await inventoryItem.save();
+        if (order) {
+            // Legacy flow: Update existing order
+            order.paymentStatus = 'paid';
+            order.paymentMethod = 'esewa';
+            order.paymentTransactionId = transaction_uuid;
+            order.paidAt = new Date();
+            order.paidAmount = total_amount;
+            order.status = 'paid';
+            await order.save();
+
+            // Stock reduction logic (same as before)
+            try {
+                for (const med of order.medicines) {
+                    if (med.inventoryId) {
+                        const inventoryItem = await Inventory.findById(med.inventoryId);
+                        if (inventoryItem) {
+                            inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
+                            inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
+                            await inventoryItem.save();
+                        }
                     }
                 }
+            } catch (inventoryError) {
+                console.error('⚠️ Error updating inventory:', inventoryError);
             }
-        } catch (inventoryError) {
-            console.error('⚠️ Error updating inventory (non-critical):', inventoryError);
+
+            console.log('✅ Medicine order payment updated via eSewa:', order._id);
+
+            // Delete from pending storage
+            deletePendingOrder(transaction_uuid);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Payment verified successfully! Your order has been placed.',
+                data: order,
+                orderCreated: true
+            });
+        } else {
+            // New flow: Order doesn't exist yet (Temp ID used)
+            console.log('ℹ️ Payment verified for TEMP order. Frontend should create order now.');
+
+            // Delete from pending storage
+            deletePendingOrder(transaction_uuid);
+
+            return res.status(200).json({
+                success: true,
+                message: 'Payment verified successfully.',
+                data: {
+                    transaction_uuid,
+                    total_amount,
+                    status,
+                    product_code: decodedData.product_code
+                },
+                orderCreated: false // Signal to frontend to create the order
+            });
         }
-
-        // Delete from pending storage
-        deletePendingOrder(transaction_uuid);
-
-        console.log('✅ Medicine order payment updated via eSewa:', order._id);
-        res.status(200).json({
-            success: true,
-            message: 'Payment verified successfully! Your order has been placed.',
-            data: order
-        });
     } catch (error) {
         console.error('Error verifying eSewa medicine payment:', error);
         res.status(500).json({ success: false, message: 'Server error', error: error.message });

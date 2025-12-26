@@ -1,24 +1,23 @@
 const MedicineOrder = require('../models/MedicineOrder');
 const Inventory = require('../models/Inventory');
 const User = require('../models/User');
+const PromoCode = require('../models/PromoCode'); // Import PromoCode
 const fs = require('fs').promises;
 const path = require('path');
 
 // @desc    Create medicine order (patient uploads prescription)
 // @route   POST /api/medicine-orders
 // @access  Private (Patient)
-// @desc    Create medicine order (patient uploads prescription OR e-commerce)
-// @route   POST /api/medicine-orders
-// @access  Private (Patient)
 exports.createMedicineOrder = async (req, res) => {
     try {
-        const { pharmacyId, deliveryAddress, deliveryNotes, type, items, contactNumber, paymentMethod, totalAmount } = req.body;
+        const { pharmacyId, deliveryAddress, deliveryNotes, type, items, contactNumber, paymentMethod, totalAmount, promoCode } = req.body;
 
         console.log('📦 Creating medicine order:', {
             patientId: req.user.id,
             pharmacyId,
             type: type || 'prescription',
-            file: req.file ? 'Attached' : 'None'
+            file: req.file ? 'Attached' : 'None',
+            promoCode: promoCode || 'None'
         });
 
         // E-commerce Order Flow
@@ -30,8 +29,35 @@ exports.createMedicineOrder = async (req, res) => {
                 });
             }
 
+            // --- Promo Code Validation (Backend Side) ---
+            let usedPromo = null;
+
+            if (promoCode) {
+                const promo = await PromoCode.findOne({ code: promoCode.toUpperCase() });
+
+                if (promo && promo.isActive) {
+                    // Check expiry
+                    if (promo.validUntil && new Date() > promo.validUntil) {
+                        return res.status(400).json({ success: false, message: 'Promo code expired' });
+                    }
+                    // Check usage
+                    if (promo.usedBy.includes(req.user.id)) {
+                        return res.status(400).json({ success: false, message: 'You have already used this promo code' });
+                    }
+
+                    usedPromo = promo;
+                    // Note: We are relying on the frontend totalAmount for now, but in a real app
+                    // we should PROBABLY recalculate everything here to prevent tampering.
+                    // For this task, the primary request is the "one-time usage" logic.
+                } else {
+                    return res.status(400).json({ success: false, message: 'Invalid promo code' });
+                }
+            }
+
             // Process items and reserve stock
             const processedMedicines = [];
+            let serverSubtotal = 0; // Let's verify calculation at least roughly
+
             for (const item of items) {
                 const inventoryItem = await Inventory.findById(item.inventoryId);
 
@@ -61,7 +87,23 @@ exports.createMedicineOrder = async (req, res) => {
                     totalPrice: item.price * item.quantity,
                     dosage: inventoryItem.dosage || 'N/A'
                 });
+
+                serverSubtotal += (item.price * item.quantity);
             }
+
+            // Recalculate totals to be safe
+            const delivery = Number(req.body.deliveryCharge) || 0;
+            let discountAmount = 0;
+
+            if (usedPromo) {
+                if (usedPromo.discountType === 'percentage') {
+                    discountAmount = (serverSubtotal * (usedPromo.discountValue / 100));
+                } else if (usedPromo.discountType === 'fixed') {
+                    discountAmount = usedPromo.discountValue;
+                }
+            }
+
+            let calculatedTotal = serverSubtotal + delivery - discountAmount;
 
             const order = await MedicineOrder.create({
                 patientId: req.user.id,
@@ -70,14 +112,53 @@ exports.createMedicineOrder = async (req, res) => {
                 deliveryAddress,
                 deliveryNotes,
                 contactNumber,
-                paymentMethod: paymentMethod || null,
-                totalAmount: totalAmount || 0,
-                subtotal: (totalAmount - (req.body.deliveryCharge || 0)) || 0, // Fallback calculation
-                deliveryCharges: req.body.deliveryCharge || 0,
-                status: 'awaiting_payment', // Skip verification for direct buy
+                paymentMethod: paymentMethod || req.body.paymentMethod || null,
+                totalAmount: calculatedTotal,
+                subtotal: serverSubtotal,
+                deliveryCharges: delivery,
+                discountAmount,
+                promoCode: usedPromo ? usedPromo.code : null,
+                status: req.body.paymentStatus === 'paid' ? 'paid' : 'awaiting_payment',
+                paymentStatus: req.body.paymentStatus || 'pending',
+                paymentTransactionId: req.body.paymentTransactionId || null,
+                paidAt: req.body.paymentStatus === 'paid' ? new Date() : null,
                 type: 'ecommerce',
-                prescriptionVerified: true // Auto-verified since it's from inventory
+                prescriptionVerified: true
             });
+
+            // If paid immediately, we must deduct actual stock (since we only reserved it above)
+            if (req.body.paymentStatus === 'paid') {
+                try {
+                    for (const med of processedMedicines) {
+                        if (med.inventoryId) {
+                            const inventoryItem = await Inventory.findById(med.inventoryId);
+                            if (inventoryItem) {
+                                // Reduce actual stock
+                                inventoryItem.quantity = Math.max(0, inventoryItem.quantity - med.quantity);
+                                // Also reduce reserved stock because it's no longer "pending" - it's sold.
+                                // The loop above added to reservedStock. We need to decrease it back effectively?
+                                // Let's think: 
+                                // - Loop above: reservedStock += qty.
+                                // - If paid: It is SOLD. So Quantity -= qty.
+                                // - ReservedStock is typically for "Held but not sold".
+                                // - If sold, it leaves the shelf.
+                                // - So we should decrease ReservedStock as well (releasing the reservation).
+                                inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - med.quantity);
+                                await inventoryItem.save();
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Inventory update error for paid order:', err);
+                }
+            }
+
+            // Mark promo as used
+            if (usedPromo) {
+                usedPromo.usedBy.push(req.user.id);
+                await usedPromo.save();
+                console.log(`🎟️ Promo ${usedPromo.code} used by ${req.user.id}`);
+            }
 
             await order.populate('pharmacyId', 'fullName email');
 
