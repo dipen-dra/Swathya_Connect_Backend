@@ -162,7 +162,11 @@ const medicineOrderSchema = new mongoose.Schema({
         notes: {
             type: String
         }
-    }]
+    }],
+    isArchived: {
+        type: Boolean,
+        default: false
+    }
 }, {
     timestamps: true
 });

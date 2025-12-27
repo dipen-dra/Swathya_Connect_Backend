@@ -139,6 +139,10 @@ const consultationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Prescription',
         default: null
+    },
+    isArchived: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true
