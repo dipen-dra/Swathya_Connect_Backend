@@ -63,6 +63,7 @@ app.use('/api/medicine-orders', require('./routes/medicineOrderRoutes'));
 app.use('/api/store', require('./routes/storeRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/store/promo', require('./routes/promoCodeRoutes'));
+app.use('/api/transactions', require('./routes/transactionRoutes'));
 
 // Error Handler
 app.use((err, req, res, next) => {
