@@ -379,6 +379,16 @@ exports.getMessages = async (req, res) => {
             query.createdAt = { $lt: new Date(before) };
         }
 
+        // Check for cleared history
+        const consultationChat = await ConsultationChat.findOne({ consultationId });
+        if (consultationChat) {
+            if (isPatient && consultationChat.clearedHistoryAt?.patient) {
+                query.createdAt = { ...query.createdAt, $gt: consultationChat.clearedHistoryAt.patient };
+            } else if (isDoctor && consultationChat.clearedHistoryAt?.doctor) {
+                query.createdAt = { ...query.createdAt, $gt: consultationChat.clearedHistoryAt.doctor };
+            }
+        }
+
         // Get messages
         const messages = await ConsultationMessage.find(query)
             .sort({ createdAt: -1 })
@@ -800,10 +810,44 @@ exports.startCallTimer = async (req, res) => {
         });
     } catch (error) {
         console.error('Error starting call timer:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Server error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// @desc    Clear consultation chat history for user
+// @route   PUT /api/consultations/:id/clear
+// @access  Private
+exports.clearChatHistory = async (req, res) => {
+    try {
+        const consultationId = req.params.id;
+        const userId = req.user.id;
+
+        // Get consultation chat
+        const consultationChat = await ConsultationChat.findOne({ consultationId });
+        if (!consultationChat) {
+            return res.status(404).json({ success: false, message: 'Chat not found' });
+        }
+
+        // Verify user
+        const isPatient = consultationChat.patientId.toString() === userId;
+        const isDoctor = consultationChat.doctorId.toString() === userId;
+
+        if (!isPatient && !isDoctor) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        // Update clearedHistoryAt
+        if (isPatient) {
+            consultationChat.clearedHistoryAt.patient = new Date();
+        } else {
+            consultationChat.clearedHistoryAt.doctor = new Date();
+        }
+
+        await consultationChat.save();
+
+        res.status(200).json({ success: true, message: 'Chat history cleared' });
+    } catch (error) {
+        console.error('Error clearing history:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };

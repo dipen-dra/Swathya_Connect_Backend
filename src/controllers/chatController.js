@@ -96,7 +96,16 @@ exports.getChatMessages = async (req, res) => {
             });
         }
 
-        const messages = await Message.find({ chatId })
+        const messagesQuery = { chatId };
+
+        // Check if user cleared history
+        if (userRole === 'patient' && chat.clearedHistoryAt?.patient) {
+            messagesQuery.createdAt = { $gt: chat.clearedHistoryAt.patient };
+        } else if (userRole === 'pharmacy' && chat.clearedHistoryAt?.pharmacy) {
+            messagesQuery.createdAt = { $gt: chat.clearedHistoryAt.pharmacy };
+        }
+
+        const messages = await Message.find(messagesQuery)
             .populate('sender', 'email role')
             .sort({ createdAt: 1 });
 
@@ -281,5 +290,43 @@ exports.uploadFile = async (req, res) => {
             message: 'Server error',
             error: error.message
         });
+    }
+};
+
+// @desc    Clear chat history for user
+// @route   PUT /api/chats/:chatId/clear
+// @access  Private
+exports.clearChatHistory = async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user._id;
+        const userRole = req.user.role;
+
+        const chat = await Chat.findById(chatId);
+        if (!chat) {
+            return res.status(404).json({ success: false, message: 'Chat not found' });
+        }
+
+        // Verify access
+        if (
+            (userRole === 'patient' && chat.patientId.toString() !== userId.toString()) ||
+            (userRole === 'pharmacy' && chat.pharmacyId.toString() !== userId.toString())
+        ) {
+            return res.status(403).json({ success: false, message: 'Access denied' });
+        }
+
+        // Update clearedHistoryAt
+        if (userRole === 'patient') {
+            chat.clearedHistoryAt.patient = new Date();
+        } else if (userRole === 'pharmacy') {
+            chat.clearedHistoryAt.pharmacy = new Date();
+        }
+
+        await chat.save();
+
+        res.status(200).json({ success: true, message: 'Chat history cleared' });
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };

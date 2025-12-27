@@ -23,7 +23,7 @@ const consultationMessageSchema = new mongoose.Schema({
     },
     messageType: {
         type: String,
-        enum: ['text', 'file', 'system'],
+        enum: ['text', 'file', 'system', 'audio'],
         default: 'text'
     },
     content: {

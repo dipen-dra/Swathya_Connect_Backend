@@ -7,7 +7,8 @@ const {
     getChatMessages,
     createChat,
     markAsRead,
-    uploadFile
+    uploadFile,
+    clearChatHistory
 } = require('../controllers/chatController');
 
 // All routes require authentication
@@ -18,6 +19,7 @@ router.get('/', authorize('patient', 'pharmacy'), getChats);
 router.post('/', authorize('patient'), createChat);
 router.get('/:chatId/messages', authorize('patient', 'pharmacy'), getChatMessages);
 router.put('/:chatId/read', authorize('patient', 'pharmacy'), markAsRead);
+router.put('/:chatId/clear', authorize('patient', 'pharmacy'), clearChatHistory);
 
 // File upload route
 router.post('/upload', authorize('patient', 'pharmacy'), upload.single('file'), uploadFile);

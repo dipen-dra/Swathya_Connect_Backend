@@ -29,6 +29,16 @@ const chatSchema = new mongoose.Schema({
             default: 0
         }
     },
+    clearedHistoryAt: {
+        patient: {
+            type: Date,
+            default: null
+        },
+        pharmacy: {
+            type: Date,
+            default: null
+        }
+    },
     status: {
         type: String,
         enum: ['active', 'archived'],

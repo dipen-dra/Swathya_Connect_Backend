@@ -32,7 +32,11 @@ const fileFilter = (req, file, cb) => {
         'image/webp',
         'application/pdf',
         'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'audio/webm',
+        'audio/mpeg',
+        'audio/mav',
+        'audio/ogg'
     ];
 
     if (allowedMimes.includes(file.mimetype)) {

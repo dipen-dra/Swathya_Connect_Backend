@@ -9,7 +9,8 @@ const {
     endConsultation,
     uploadFile,
     generateAgoraToken,
-    startCallTimer
+    startCallTimer,
+    clearChatHistory
 } = require('../controllers/consultationChatController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../config/multer');
@@ -28,6 +29,9 @@ router.get('/:id/messages', getMessages);
 
 // Mark messages as read - matches frontend: /api/consultation-chat/:id/read
 router.put('/:id/read', markMessagesAsRead);
+
+// Clear chat history
+router.put('/:id/clear', clearChatHistory);
 
 // Start consultation (Doctor only)
 router.post('/:id/start', startConsultation);
